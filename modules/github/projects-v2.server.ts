@@ -5,7 +5,7 @@ import { db } from '#db/connection.server.ts';
 import { projects } from '#db/schema.server.ts';
 import type { Project } from '#modules/projects/types.ts';
 import { TASK_STATUSES, type TaskStatus } from '#modules/tasks/types.ts';
-import { GithubError, ghGraphql } from './client.server.ts';
+import { GithubError, ghGraphql, viaInstallation } from './client.server.ts';
 
 // The board option for each genie status. Matched loosely against what the
 // board has ("In Progress" on a default board), created with this spelling.
@@ -62,7 +62,7 @@ const findOption = (options: BoardOption[], status: TaskStatus) =>
 export async function resolveBoard(project: Project): Promise<Project> {
   if (!project.githubProjectNumber) return project;
   const owner = project.githubRepo.split('/')[0];
-  const data = await ghGraphql<BoardQuery>(BOARD_QUERY, { owner, number: project.githubProjectNumber });
+  const data = await ghGraphql<BoardQuery>(BOARD_QUERY, { owner, number: project.githubProjectNumber }, { auth: viaInstallation(project) });
   const board = data.repositoryOwner?.projectV2;
   if (!board) throw new GithubError(`Project #${project.githubProjectNumber} was not found under ${owner}. Check the number and that the token has the project scope.`, 404);
   if (!board.field) throw new GithubError('The board has no single-select Status field.', 422);
@@ -77,7 +77,7 @@ export async function resolveBoard(project: Project): Promise<Project> {
         ...options.map((o) => ({ id: o.id, name: o.name, color: o.color, description: o.description })),
         ...missing.map((s) => ({ name: STATUS_OPTION_NAMES[s], color: OPTION_COLORS[s], description: 'Set by genie' })),
       ],
-    });
+    }, { auth: viaInstallation(project) });
     options = updated.updateProjectV2Field.projectV2Field.options;
   }
   const statusOptionIds: Partial<Record<TaskStatus, string>> = {};
@@ -99,14 +99,14 @@ function requireBoard(project: Project): { projectId: string; fieldId: string } 
 export async function itemIdForIssue(project: Project, issueNumber: number): Promise<string | null> {
   const { projectId } = requireBoard(project);
   const [owner, name] = project.githubRepo.split('/');
-  const data = await ghGraphql<{ repository: { issue: { projectItems: { nodes: { id: string; project: { id: string } }[] } } | null } }>(ITEM_QUERY, { owner, name, number: issueNumber });
+  const data = await ghGraphql<{ repository: { issue: { projectItems: { nodes: { id: string; project: { id: string } }[] } } | null } }>(ITEM_QUERY, { owner, name, number: issueNumber }, { auth: viaInstallation(project) });
   return data.repository.issue?.projectItems.nodes.find((n) => n.project.id === projectId)?.id ?? null;
 }
 
 // Idempotent on GitHub's side: an issue already on the board returns its item.
 export async function addIssueToBoard(project: Project, issueNodeId: string): Promise<string> {
   const { projectId } = requireBoard(project);
-  const data = await ghGraphql<{ addProjectV2ItemById: { item: { id: string } } }>(ADD_ITEM, { projectId, contentId: issueNodeId });
+  const data = await ghGraphql<{ addProjectV2ItemById: { item: { id: string } } }>(ADD_ITEM, { projectId, contentId: issueNodeId }, { auth: viaInstallation(project) });
   return data.addProjectV2ItemById.item.id;
 }
 
@@ -114,7 +114,7 @@ export async function moveItem(project: Project, itemId: string, status: TaskSta
   const { projectId, fieldId } = requireBoard(project);
   const optionId = project.statusOptionIds?.[status];
   if (!optionId) throw new GithubError(`The board has no option for ${status}. Reconnect the project.`, 422);
-  await ghGraphql(MOVE_ITEM, { projectId, itemId, fieldId, optionId });
+  await ghGraphql(MOVE_ITEM, { projectId, itemId, fieldId, optionId }, { auth: viaInstallation(project) });
 }
 
 export interface BoardItem { itemId: string; optionId: string | null; issueNumber: number | null; open: boolean }
@@ -125,7 +125,7 @@ export interface BoardItem { itemId: string; optionId: string | null; issueNumbe
 // nullable and the sync skips those.
 export async function listBoardItems(project: Project): Promise<{ items: BoardItem[]; truncated: boolean }> {
   const { projectId } = requireBoard(project);
-  const data = await ghGraphql<{ node: { items: { pageInfo: { hasNextPage: boolean }; nodes: { id: string; fieldValueByName: { optionId: string } | null; content: { number: number; state: string } | null }[] } } }>(ITEMS_QUERY, { projectId });
+  const data = await ghGraphql<{ node: { items: { pageInfo: { hasNextPage: boolean }; nodes: { id: string; fieldValueByName: { optionId: string } | null; content: { number: number; state: string } | null }[] } } }>(ITEMS_QUERY, { projectId }, { auth: viaInstallation(project) });
   return {
     truncated: data.node.items.pageInfo.hasNextPage,
     items: data.node.items.nodes.map((n) => ({ itemId: n.id, optionId: n.fieldValueByName?.optionId ?? null, issueNumber: n.content?.number ?? null, open: n.content?.state === 'OPEN' })),
