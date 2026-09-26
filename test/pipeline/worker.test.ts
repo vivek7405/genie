@@ -260,6 +260,15 @@ describe('the claim rules through the stage runner seam', () => {
   });
 });
 
+describe('retry over the stage dependency fake', () => {
+  let fake: ReturnType<typeof fakeDeps>;
+  let restore: () => void;
+  beforeEach(() => {
+    fake = fakeDeps();
+    restore = setStageDeps(fake.deps);
+  });
+  afterEach(() => restore());
+
 test('Retry clears the failure and the attempt count, and the next tick re-runs the stage on the same machine', async () => {
   const { retryTask } = await import('#modules/tasks/actions/retry-task.server.ts');
   const { taskEvents } = await import('#db/schema.server.ts');
@@ -291,4 +300,5 @@ test('Retry clears the failure and the attempt count, and the next tick re-runs 
   assert.equal(fake.machines.length, 0, 'no new machine');
   assert.deepEqual(fake.pushes.map((p) => p.machineId), ['m-kept']);
   assert.equal(row.feedback, null, 'the revise applied it');
+});
 });
