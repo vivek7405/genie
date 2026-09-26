@@ -508,6 +508,13 @@ async function startPreviewInMachine(task: Task, machineId: string): Promise<str
   const name = task.machineName;
   if (!name) throw new Error('The task has no machine name to serve the preview from.');
   const dir = appDirOf(task);
+  // A revise lands on the machine that already serves the previous build, so
+  // whatever holds the port is stopped first; otherwise the readiness check
+  // below would answer from the old process and the preview would show the
+  // code the reviewer just rejected. Both kills are no-ops on a fresh machine.
+  await deps.execLong(machineId,
+    `(fuser -k -TERM ${APP_PORT}/tcp >/dev/null 2>&1 || true); (pkill -f 'PORT=${APP_PORT} npm run' >/dev/null 2>&1 || true); sleep 1`,
+    { timeoutMs: 30_000 });
   await deps.execLong(machineId,
     `cd ${dir} && (npm install --no-audit --no-fund >/home/pilot/app.log 2>&1 || true) && setsid nohup sh -c 'PORT=${APP_PORT} npm run start 2>&1 || PORT=${APP_PORT} npm run dev 2>&1' >> /home/pilot/app.log 2>&1 < /dev/null &`,
     { cwd: dir, timeoutMs: 600_000 });
