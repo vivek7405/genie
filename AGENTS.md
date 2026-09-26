@@ -161,6 +161,7 @@ npm run doctor               # project health (severity per check: webjs.doctor.
 npx webjsdev ui add <name>   # copy a ui primitive into components/ui/
 npx webjsdev ui view <name>  # inspect a primitive's exact signature
 npm run db:generate && npm run db:migrate
+npm run demo:reset -- --yes  # delete the demo project's tasks and events (add --github to close its PRs and issues)
 ```
 
 ## Type everything (all templates)

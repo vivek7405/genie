@@ -24,7 +24,8 @@
     "db:studio": "webjs db studio",
     "db:seed": "webjs db seed",
     "pilots:smoke": "node --env-file-if-exists=.env scripts/pilots-smoke.ts",
-    "cleanup:machines": "node --env-file-if-exists=.env scripts/cleanup-machines.ts"
+    "cleanup:machines": "node --env-file-if-exists=.env scripts/cleanup-machines.ts",
+    "demo:reset": "node --env-file-if-exists=.env scripts/demo-reset.ts"
   },
   "dependencies": {
     "@pilots/sdk": "^0.1.1",
