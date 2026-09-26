@@ -12,6 +12,7 @@ import { getTask } from '#modules/tasks/queries/get-task.server.ts';
 import { listEvents } from '#modules/tasks/queries/list-events.server.ts';
 import { COLUMNS, labelOf } from '#modules/tasks/utils/state-machine.ts';
 import { statusBadge } from '#modules/tasks/utils/ui/status-badge.ts';
+import { clock, isDeferred } from '#modules/tasks/utils/ui/clock.ts';
 import '#modules/tasks/components/live-refresh.ts';
 
 interface CardProps extends PageProps<'/dashboard/projects/[id]/tasks/[tid]'> {
@@ -37,7 +38,7 @@ export default async function TaskCard({ params, actionData }: CardProps) {
     ${pageHeader({
       above: backLink(`/dashboard/projects/${project.id}`, project.name),
       title: task.title,
-      lede: html`<span class="inline-flex flex-wrap items-center gap-2">${statusBadge(task.status, task.error)}<span class="font-mono text-label uppercase tracking-[0.12em] text-muted-foreground">attempt ${task.attempt} · created ${task.createdAt.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</span></span>`,
+      lede: html`<span class="inline-flex flex-wrap items-center gap-2">${statusBadge(task.status, task.error, task.deferredUntil)}<span class="font-mono text-label uppercase tracking-[0.12em] text-muted-foreground">attempt ${task.attempt} · created ${task.createdAt.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</span></span>${!task.error && isDeferred(task) ? html`<span class="mt-1 block text-meta text-muted-foreground">${task.deferReason ?? 'Waiting'}, retrying at ${clock(task.deferredUntil!)}.</span>` : ''}`,
       actions: html`<live-refresh project-id=${project.id} frame="task"></live-refresh>`,
     })}
 
