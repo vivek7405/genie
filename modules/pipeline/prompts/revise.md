@@ -56,5 +56,5 @@ Repository: `{{repo}}`, cloned at `{{appDir}}`. {{issueRef}}. Pull request
 
 If the feedback cannot be applied (it asks for something the repository cannot
 do, or it contradicts itself), do not guess. Write the reason to
-`REVISION_BLOCKED.md` in the repository root, commit and push it, and stop; the
+`REVISION_BLOCKED.md` in the repository root, commit and push it, and stop. The
 reviewer will see it on the pull request.

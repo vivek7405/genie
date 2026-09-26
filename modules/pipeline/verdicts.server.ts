@@ -101,7 +101,7 @@ export async function approve(taskId: string, note?: string): Promise<Outcome> {
   const production = productionUrl ?? project.productionUrl;
   await recordEvent(taskId, 'status', production
     ? `Pilots is deploying ${project.defaultBranch} to ${production}`
-    : `No Pilots service tracks ${project.githubRepo}; connect one to deploy ${project.defaultBranch}`);
+    : `No Pilots service tracks ${project.githubRepo}. Connect one to deploy ${project.defaultBranch}`);
 
   if (claimed.githubIssueNumber != null && claimed.prNumber != null) {
     const body = production

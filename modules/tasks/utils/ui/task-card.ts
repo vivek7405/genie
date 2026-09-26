@@ -11,12 +11,13 @@ export function taskCard(task: Task) {
   const waiting = !task.error && isDeferred(task);
   const busy = isSystemOwned(task) && task.status !== 'todo' && !waiting;
   const meta: unknown[] = [];
-  if (task.error) meta.push(html`<span class="text-destructive">failed on attempt ${task.attempt}</span>`);
+  if (task.error) meta.push(html`<span class="text-destructive">Failed on attempt ${task.attempt}, open to retry</span>`);
   else if (waiting) meta.push(html`<span>${task.deferReason ?? 'Waiting'}, retrying at ${clock(task.deferredUntil!)}</span>`);
+  else if (task.feedback && task.status === 'in_progress') meta.push(html`<span>Revising after feedback</span>`);
   else if (busy) meta.push(html`<span>working</span>`);
   if (task.prNumber) meta.push(html`<span>PR #${task.prNumber}</span>`);
   if (task.previewUrl) meta.push(html`<span>preview ready</span>`);
-  if (task.feedback && task.status === 'in_progress') meta.push(html`<span>revising</span>`);
+  if (task.status === 'done') meta.push(html`<span>Merged</span>`);
   return html`
     <a href="/dashboard/projects/${task.projectId}/tasks/${task.id}"
        class=${cn(cardClass(), 'block px-3.5 py-3 no-underline transition-colors hover:border-border-strong', task.error && 'border-destructive/50')}>
