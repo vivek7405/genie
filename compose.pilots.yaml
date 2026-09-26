@@ -1,4 +1,4 @@
-# How genie deploys on pilots. `pilot deploy` picks this file ahead of
+# How Genie deploys on Pilots. `pilot deploy` picks this file ahead of
 # compose.yaml, which stays for docker compose on a laptop.
 #
 # One service, one volume, one resident replica: the SQLite file lives on the
@@ -27,7 +27,7 @@ services:
     volumes:
       - genie-data:/data
     # The same probe as the Dockerfile HEALTHCHECK. With a compose file present
-    # pilots takes the health check from here, and readiness.ts folds the
+    # Pilots takes the health check from here, and readiness.ts folds the
     # migrated database into /__webjs/ready.
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:'+(process.env.PORT||8080)+'/__webjs/ready').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]

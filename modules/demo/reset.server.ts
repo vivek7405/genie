@@ -3,7 +3,7 @@
 // GitHub. The project row stays so the board URL survives. Deleting rows
 // needs no worker pause: the worker only claims rows it can still read, and a
 // task deleted mid-run fails its transition update harmlessly. Leftover
-// pilots machines are the cleanup script's job, not this one's.
+// Pilots machines are the cleanup script's job, not this one's.
 import { eq, inArray } from 'drizzle-orm';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';

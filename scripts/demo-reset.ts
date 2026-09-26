@@ -6,7 +6,7 @@
 //   npm run demo:reset -- --repo owner/name  another project
 //
 // Runs with plain node (Node 24 strips the types) and loads .env when there
-// is one, so it works on a laptop and inside the pilots replica alike.
+// is one, so it works on a laptop and inside the Pilots replica alike.
 import { resetDemo, DEMO_REPO } from '#modules/demo/reset.server.ts';
 
 const args = process.argv.slice(2);
