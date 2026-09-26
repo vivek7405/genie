@@ -185,13 +185,16 @@ export interface GraphqlInit { auth?: TokenSource }
 export async function ghGraphql<T>(query: string, variables: Record<string, unknown> = {}, init: GraphqlInit = {}): Promise<T> {
   const res = await request(`${API}/graphql`, { method: 'POST', body: JSON.stringify({ query, variables }) }, await resolveAuth(init.auth));
   let payload = (await res.json()) as GraphqlPayload<T>;
-  if (payload.errors?.length && init.auth?.token === 'user' && payload.errors.every((e) => NOT_FOR_APPS.test(e.message))) {
+  if (payload.errors?.length && init.auth && init.auth.token !== 'app' && payload.errors.every((e) => NOT_FOR_APPS.test(e.message))) {
     // GitHub Apps have no permission that reaches a PERSON's own Projects v2
     // boards (only an organisation's), so a sign-in token is refused there
-    // with "Resource not accessible by integration". The deployment's own
+    // with "Resource not accessible by integration" and an installation
+    // token with "Could not resolve to a ProjectV2". The deployment's own
     // token (GH_TOKEN) can read them when it belongs to the same GitHub login
-    // as the person signed in, and only then: one person, one account.
-    const own = await ownTokenFor(init.auth.user.login);
+    // as the person signed in, or as the account the App is installed on,
+    // and only then: one person, one account.
+    const login = init.auth.token === 'user' ? init.auth.user.login : await installationLogin(init.auth.project.installationId);
+    const own = login ? await ownTokenFor(login) : null;
     if (own) {
       const retry = await request(`${API}/graphql`, { method: 'POST', body: JSON.stringify({ query, variables }) }, own);
       payload = (await retry.json()) as GraphqlPayload<T>;
@@ -205,7 +208,29 @@ export async function ghGraphql<T>(query: string, variables: Record<string, unkn
   return payload.data;
 }
 
-const NOT_FOR_APPS = /Resource not accessible by integration/i;
+// The App's refusal in its two spellings: a user token gets the first, an
+// installation token the second (GitHub hides the board rather than naming
+// the missing permission).
+const NOT_FOR_APPS = /Resource not accessible by integration|Could not resolve to a ProjectV2/i;
+
+// The login of the account an installation sits on, read once through the
+// App and remembered for the process. Null when there is no installation or
+// GitHub would not say, and the fallback then stays off.
+const installationLogins = new Map<number, string | null>();
+async function installationLogin(installationId: number | null | undefined): Promise<string | null> {
+  if (installationId == null) return null;
+  const known = installationLogins.get(installationId);
+  if (known !== undefined) return known;
+  let login: string | null = null;
+  try {
+    const res = await request(`${API}/app/installations/${installationId}`, { method: 'GET' }, state.transport ? null : appJwt());
+    login = ((await res.json()) as { account?: { login?: string } }).account?.login ?? null;
+  } catch {
+    login = null;
+  }
+  installationLogins.set(installationId, login);
+  return login;
+}
 
 // GH_TOKEN when it is the signed-in person's own token, else null. Only the
 // environment counts, never the gh CLI: a server has none, and a test must
