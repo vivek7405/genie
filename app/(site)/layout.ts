@@ -25,7 +25,6 @@ export function generateMetadata(ctx: { url: string }) {
 const NAV = [
   { href: '/#loop', label: 'How it works' },
   { href: '/#sandbox', label: 'Sandboxes' },
-  { href: '/brand', label: 'Brand' },
 ];
 
 const navLink = 'whitespace-nowrap rounded-sm px-3 py-1.5 text-body text-muted-foreground no-underline transition-colors hover:bg-muted hover:text-foreground';

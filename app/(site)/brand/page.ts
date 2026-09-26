@@ -94,7 +94,6 @@ function headerMock() {
       <div class="flex h-14 items-center gap-3 px-4">
         <span class="mr-2 flex items-center gap-2 text-foreground" style="--logo-accent: var(--glow)">${markSvg(22)}<span class="font-mono text-body font-semibold tracking-tight">genie</span></span>
         <span class="rounded-sm bg-muted px-3 py-1.5 text-body font-medium">Projects</span>
-        <span class="px-3 py-1.5 text-body text-muted-foreground">Brand</span>
         <span class="ml-auto"><span class=${buttonClass({ size: 'sm' })}>New task</span></span>
       </div>
     </div>
