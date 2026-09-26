@@ -245,10 +245,11 @@ The Pilots secrets `pilot_api_key`, `claude_code_oauth_token` and
 
 ## Status
 
-Merged today: M1 (dashboard, board, stub pipeline) with the brand and the
-public site. This branch adds M7 (the Pilots compose file, the readiness
-gate, the demo reset, this README). In progress: M2 (GitHub sync and the board mirror),
-M3 (Pilots machines and the Claude launcher), M4 (the real plan and build
-stages with the self-review), M5 (approve, request changes, production URL),
-M6 (hardening, the cleanup script, `GET /health`). Until they merge, the
-pipeline is the M1 stub and the sections above describe the plan of record.
+Every milestone is merged: M1 (dashboard, board, brand, public site), M2 (GitHub
+issues and Projects v2 sync), M3 (Pilots machines and the Claude Code launcher),
+M4 (the plan and build stages with the self-review), M5 (approve merges, request
+changes revises, the production URL), M6 (deferral, per-project cap, claim
+release, cleanup, `GET /health`) and M7 (this compose file, the readiness gate,
+the demo reset, this README). The sections above describe what runs. What has
+not happened yet is the first live walk with real credentials, which is the
+demo itself.
