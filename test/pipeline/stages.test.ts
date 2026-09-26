@@ -193,7 +193,7 @@ test('in_progress builds on the task branch, stores the PR and the preview, and 
   assert.equal(row.prNumber, 7);
   assert.equal(row.prUrl, PR_URL);
   assert.equal(row.previewUrl, PREVIEW_URL);
-  assert.equal(fake.claudeRuns.length, 1);
+  assert.equal(fake.claudeRuns.length, 2, 'the build run and the self-review');
   const run = fake.claudeRuns[0];
   assert.equal(run.timeoutMs, 2_700_000);
   assert.equal(run.maxTurns, 200);
@@ -204,7 +204,7 @@ test('in_progress builds on the task branch, stores the PR and the preview, and 
   assert.ok(run.prompt.includes('Its first line is `Closes #4`.'));
   assert.ok(run.prompt.includes('already has code'));
   assert.equal(fake.commands('gh pr list --head genie/4-add-an-about-page').length, 2, 'looked up before and after the run');
-  assert.equal(fake.pushes.length, 0, 'the agent pushed, not the backstop');
+  assert.equal(fake.commands('gh pr create').length, 0, 'the agent opened the PR, not the backstop');
   assert.deepEqual(fake.previews, [{ prNumber: 7, sha: 'abc1234' }, { prNumber: 7, sha: 'abc1234' }]);
   assert.equal(fake.comments.length, 0, 'the mirror posts the review comment, not the stage');
   const github = await messages(task.id, 'github');
@@ -282,7 +282,8 @@ test('a re-claimed task whose PR exists on GitHub is found by gh before Claude r
   fake.onCommand('gh pr list', { stdout: `${PR_LIST}\n` });
   const task = await inProgress({ branch: 'genie/4-add-an-about-page' });
   assert.equal(await runStage(task), 'ready_for_review');
-  assert.equal(fake.claudeRuns.length, 0);
+  assert.equal(fake.claudeRuns.length, 1, 'no build run; the self-review still runs once for this PR');
+  assert.ok(fake.claudeRuns[0].prompt.startsWith('/code-review'));
   assert.equal((await reload(task.id)).prNumber, 7);
 });
 
@@ -290,8 +291,9 @@ test('the backstop pushes the branch and opens the PR when the run ended before 
   fake.onCommand('gh pr list', (_cmd, nth) => ({ stdout: nth < 2 ? '[]\n' : `${PR_LIST}\n` }));
   const task = await inProgress();
   assert.equal(await runStage(task), 'ready_for_review');
-  assert.deepEqual(fake.pushes, [{ machineId: 'm1', dir: APP_DIR, branch: 'genie/4-add-an-about-page' }]);
   const [create] = fake.commands('gh pr create');
+  assert.deepEqual(fake.pushes[0], { machineId: 'm1', dir: APP_DIR, branch: 'genie/4-add-an-about-page' });
+  assert.ok(fake.timeline.indexOf('push') < fake.timeline.indexOf(`exec:${create}`), 'pushed before the PR was opened');
   assert.ok(create.includes('--base main --head genie/4-add-an-about-page'));
   assert.ok(create.includes('Closes #4'));
   assert.ok(create.includes('--body-file /home/pilot/pr-body.md'));
@@ -340,6 +342,63 @@ test('a build whose branch never reached the remote fails after the PR is stored
   fake.onCommand('git rev-parse origin/', { exitCode: 128, stdout: '' });
   const task = await inProgress();
   await assert.rejects(runStage(task), /Branch genie\/4-add-an-about-page is not on the remote/);
+});
+
+// The self-review between the PR and the preview.
+
+test('the self-review runs on the PR after it is resolved and before the preview poll', async () => {
+  fake.onClaude((opts) => (opts.prompt.startsWith('/code-review') ? okRun({ result: 'Reviewed PR #7: fixed 2 findings and left 3 comments.' }) : okRun()));
+  fake.onCommand('git diff --quiet HEAD', { stdout: 'committed\n' });
+  const task = await inProgress();
+  assert.equal(await runStage(task), 'ready_for_review');
+  const review = fake.claudeRuns[1];
+  assert.equal(review.prompt, '/code-review --fix --comment 7');
+  assert.equal(review.timeoutMs, 600_000);
+  assert.equal(review.maxTurns, 60);
+  assert.equal(review.cwd, APP_DIR);
+  assert.equal(review.logPath, '/home/pilot/agent.log');
+  const t = fake.timeline;
+  const prList = t.findIndex((e, i) => e.startsWith('exec:gh pr list') && i > t.indexOf('claude'));
+  assert.ok(t.indexOf('claude') < prList && prList < t.lastIndexOf('claude') && t.lastIndexOf('claude') < t.indexOf('push') && t.indexOf('push') < t.indexOf('preview'), t.join(' | '));
+  assert.deepEqual(fake.pushes, [{ machineId: 'm1', dir: APP_DIR, branch: 'genie/4-add-an-about-page' }]);
+  const logs = await messages(task.id, 'log');
+  assert.ok(logs.includes('Self-review: 2 findings fixed, 3 comments left'));
+  assert.ok(logs.includes('Committed the self-review fixes the run left in the working tree'));
+  assert.ok(fake.commands('git diff --quiet HEAD')[0].includes('git commit -q -m "Apply the self-review findings"'));
+});
+
+test('GENIE_SELF_REVIEW=0 skips the self-review', async () => {
+  process.env.GENIE_SELF_REVIEW = '0';
+  const task = await inProgress();
+  assert.equal(await runStage(task), 'ready_for_review');
+  assert.equal(fake.claudeRuns.length, 1);
+  assert.equal(fake.pushes.length, 0);
+  assert.ok(!(await messages(task.id, 'log')).some((m) => m.startsWith('Self-review')));
+});
+
+test('a failing, rate-limited or throwing self-review does not fail the stage', async () => {
+  fake.onClaude((opts) => (opts.prompt.startsWith('/code-review') ? okRun({ exitCode: 1, result: 'Error: gh: HTTP 403' }) : okRun()));
+  const a = await inProgress();
+  assert.equal(await runStage(a), 'ready_for_review');
+  assert.ok((await messages(a.id, 'log')).includes('Self-review: 0 findings fixed, 0 comments left (the run ended with exit 1)'));
+
+  fake.onClaude((opts) => (opts.prompt.startsWith('/code-review') ? okRun({ exitCode: 1, result: '', isRateLimited: true }) : okRun()));
+  const b = await inProgress({ githubIssueNumber: 5 });
+  assert.equal(await runStage(b), 'ready_for_review');
+  assert.ok((await messages(b.id, 'log')).includes('Self-review skipped: Claude is rate limited'));
+  assert.equal((await reload(b.id)).previewUrl, PREVIEW_URL);
+
+  fake.onClaude((opts) => { if (opts.prompt.startsWith('/code-review')) throw new Error('exec timed out'); return okRun(); });
+  const c = await inProgress({ githubIssueNumber: 6 });
+  assert.equal(await runStage(c), 'ready_for_review');
+  assert.ok((await messages(c.id, 'log')).includes('Self-review skipped: exec timed out'));
+});
+
+test('parseSelfReview reads the counts out of a free-form summary', () => {
+  assert.deepEqual(stages.parseSelfReview('Fixed 2 findings and left 3 comments on PR #7.'), { fixed: 2, comments: 3 });
+  assert.deepEqual(stages.parseSelfReview('4 findings were fixed in the working tree. Posted 1 inline comment.'), { fixed: 4, comments: 1 });
+  assert.deepEqual(stages.parseSelfReview('No findings. Nothing to fix.'), { fixed: 0, comments: 0 });
+  assert.deepEqual(stages.parseSelfReview(''), { fixed: 0, comments: 0 });
 });
 
 test('runStage returns null for a status the system does not own', async () => {

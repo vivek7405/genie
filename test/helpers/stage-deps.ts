@@ -37,8 +37,9 @@ export interface FakeDeps {
   issueReads: number[];
   previews: { prNumber: number; sha: string }[];
   fileReads: string[];
-  // Every exec and Claude run in the order they happened: 'exec:<cmd>' or
-  // 'claude', for ordering assertions.
+  // Every exec, Claude run, push and preview poll in the order they
+  // happened ('exec:<cmd>', 'claude', 'push', 'preview'), for ordering
+  // assertions.
   timeline: string[];
   onCommand(match: string | RegExp, answer: ExecAnswer | ExecAnswer[] | ExecResponder): FakeDeps;
   onClaude(fn: (opts: RunClaudeOptions, nth: number) => ClaudeRun | Promise<ClaudeRun>): FakeDeps;
@@ -101,6 +102,7 @@ export function fakeDeps(): FakeDeps {
       },
       async pushBranch(machineId, dir, branch) {
         fake.pushes.push({ machineId, dir, branch });
+        fake.timeline.push('push');
       },
       async commentOnIssue(_project, issueNumber, body) {
         fake.comments.push({ issueNumber, body });
@@ -112,6 +114,7 @@ export function fakeDeps(): FakeDeps {
       },
       async findPreviewUrl(_project, prNumber, opts) {
         fake.previews.push({ prNumber, sha: opts.sha });
+        fake.timeline.push('preview');
         return state.preview(prNumber, opts.sha, previewCalls++);
       },
       timing: { logPollMs: 0, previewPollMs: 0, appPollMs: 0, previewTimeoutMs: 60_000, appStartTimeoutMs: 60_000 },
