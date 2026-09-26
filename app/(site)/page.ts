@@ -11,7 +11,7 @@ import { cn } from '#lib/utils/cn.ts';
 //   loop      the four steps, and who owns which
 //   sandbox   every task gets its own computer, and nothing of yours is on it
 //   stack     it speaks the repository's language; WebJs only for a new app
-//   built     the two open-source pieces underneath
+//   built     the two pieces underneath
 // Every section stands alone: a reader arriving mid-page from a link must be
 // able to read a heading and its first sentence with nothing above it.
 

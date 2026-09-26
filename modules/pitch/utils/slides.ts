@@ -27,7 +27,7 @@ export const SLIDES: readonly Slide[] = [
   {
     id: 'solution',
     kicker: '2 · How it solves the problem',
-    title: 'The tracker is the interface and Genie owns the middle two columns',
+    title: 'The tracker is the interface',
     points: [
       'You own Todo, Review and Done. Genie owns Plan and In progress, and never overwrites a column you own.',
       'One state machine in SQLite is the queue, the audit log and the board. Every step is a line in the card’s activity feed.',
@@ -39,7 +39,7 @@ export const SLIDES: readonly Slide[] = [
   {
     id: 'ai',
     kicker: '3 · How AI is used',
-    title: 'Claude Code, headless, inside a throwaway machine per task',
+    title: 'Claude Code, headless, in a machine per task',
     points: [
       'Each task gets its own Pilots sandbox, a machine restored from a base checkpoint with git, gh and Claude Code preinstalled.',
       'Planning is one short, timeboxed run that reads the issue and the repo’s own AGENTS.md and writes a compact plan, posted to the issue.',
@@ -51,7 +51,7 @@ export const SLIDES: readonly Slide[] = [
   {
     id: 'choices',
     kicker: '4 · Key technical choices',
-    title: 'Two open-source primitives and a strict credential rule',
+    title: 'Built on WebJs and Pilots',
     points: [
       'WebJs is a buildless, server-first web framework. Pages render as HTML, islands hydrate where needed, frames and WebSockets give the live board with almost no client code.',
       'Pilots runs sandboxes and services on one primitive. A machine costs nothing while idle, wakes on request, and the GitHub App gives every PR a preview URL and deploys on merge.',
@@ -62,7 +62,7 @@ export const SLIDES: readonly Slide[] = [
   {
     id: 'next',
     kicker: '5 · What we would build next',
-    title: 'From one task at a time to a team’s backlog',
+    title: 'What comes next',
     points: [
       'Cancel and steer from the board. Removing the genie label mid-run stops the agent and closes its PR, and a comment redirects it. Today the label is a one-way opt-in at pick-up.',
       'Parallel tasks with per-repo locks, cost and time budgets, and rate-limit backoff on the subscription window.',
