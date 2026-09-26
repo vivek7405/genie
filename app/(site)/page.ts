@@ -67,7 +67,7 @@ const COLUMNS = [
   { label: 'Todo', owner: 'you' },
   { label: 'Plan', owner: 'genie' },
   { label: 'In progress', owner: 'genie' },
-  { label: 'Review', owner: 'genie' },
+  { label: 'Review', owner: 'you' },
   { label: 'Done', owner: 'you' },
 ];
 

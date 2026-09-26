@@ -25,8 +25,9 @@ approve          Review to Done               (machine swept later)         PR s
 ```
 
 The board columns are Todo, Plan, In Progress, Review and Done. Genie owns
-the middle three. You own Todo and the verdict on Review, and you can give
-that verdict three ways: the buttons on the card, moving the card on the
+Plan and In Progress. You own Todo, Review and Done: a card reaches Review
+built and self-reviewed, waiting for your verdict, which you can give three
+ways: the buttons on the card, moving the card on the
 GitHub board, or a pull request review that requests changes or approves.
 A failed stage keeps its column, shows the error on the card, and Retry
 re-runs that stage on the same machine.
