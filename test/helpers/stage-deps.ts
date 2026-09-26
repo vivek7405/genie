@@ -35,6 +35,9 @@ export interface FakeDeps {
   machines: { id: string; name: string }[];
   clones: { machineId: string; dir: string }[];
   pushes: { machineId: string; dir: string; branch: string }[];
+  // The token each clone and push was handed, in order (null for none).
+  cloneTokens: (string | null)[];
+  pushTokens: (string | null)[];
   comments: { issueNumber: number; body: string }[];
   issueReads: number[];
   previews: { prNumber: number; sha: string }[];
@@ -49,6 +52,9 @@ export interface FakeDeps {
   onReadFile(fn: (path: string) => string | Promise<string>): FakeDeps;
   onPreview(fn: (prNumber: number, sha: string, nth: number) => string | null): FakeDeps;
   onReviewComments(fn: (prNumber: number) => ReviewComment[] | Promise<ReviewComment[]>): FakeDeps;
+  // The token the project resolves to (the default is none, as in a test
+  // environment with no GH_TOKEN and no App).
+  onRepoToken(fn: () => string | null | Promise<string | null>): FakeDeps;
   // The commands so far whose text includes `needle`.
   commands(needle: string | RegExp): string[];
 }
@@ -60,6 +66,7 @@ export function fakeDeps(): FakeDeps {
     readFile: (() => PLAN_TEXT) as (path: string) => string | Promise<string>,
     preview: (() => PREVIEW_URL) as (prNumber: number, sha: string, nth: number) => string | null,
     reviewComments: (() => []) as (prNumber: number) => ReviewComment[] | Promise<ReviewComment[]>,
+    repoToken: (() => null) as () => string | null | Promise<string | null>,
   };
   let claudeCalls = 0;
   let previewCalls = 0;
@@ -79,7 +86,7 @@ export function fakeDeps(): FakeDeps {
   };
 
   const fake: FakeDeps = {
-    execs: [], claudeRuns: [], machines: [], clones: [], pushes: [], comments: [], issueReads: [], previews: [], threadReads: [], fileReads: [], timeline: [],
+    execs: [], claudeRuns: [], machines: [], clones: [], pushes: [], cloneTokens: [], pushTokens: [], comments: [], issueReads: [], previews: [], threadReads: [], fileReads: [], timeline: [],
     deps: {
       async createTaskMachine(task) {
         const m = { id: `m-${++machineCount}`, name: `genie-stages-${task.id.slice(0, 8)}` };
@@ -104,10 +111,15 @@ export function fakeDeps(): FakeDeps {
       },
       async cloneRepo(machineId, _project, opts) {
         fake.clones.push({ machineId, dir: opts.dir });
+        fake.cloneTokens.push(opts.token);
       },
-      async pushBranch(machineId, dir, branch) {
+      async pushBranch(machineId, dir, branch, opts) {
         fake.pushes.push({ machineId, dir, branch });
+        fake.pushTokens.push(opts.token);
         fake.timeline.push('push');
+      },
+      async repoToken() {
+        return state.repoToken();
       },
       async commentOnIssue(_project, issueNumber, body) {
         fake.comments.push({ issueNumber, body });
@@ -147,6 +159,10 @@ export function fakeDeps(): FakeDeps {
     },
     onReviewComments(fn) {
       state.reviewComments = fn;
+      return fake;
+    },
+    onRepoToken(fn) {
+      state.repoToken = fn;
       return fake;
     },
     commands(needle) {

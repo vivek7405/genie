@@ -15,6 +15,12 @@
 // the plan comment is posted only once. Every side effect on the outside
 // world (Pilots, Claude, git, GitHub) goes through `deps`, whose defaults are
 // the real modules and whose test seam is setStageDeps().
+//
+// Inside a machine, git, gh and Claude act with the project's installation
+// token (repoToken: the GitHub App's, or the operator's GH_TOKEN without an
+// App), resolved through deps.repoToken right before each exec that needs it
+// so a long run never hands its successor a token about to expire. It rides
+// only as the env of that exec (gitEnv), the rule in docs/pilots.md.
 import { eq } from 'drizzle-orm';
 import { db } from '#db/connection.server.ts';
 import { tasks } from '#db/schema.server.ts';
@@ -22,6 +28,7 @@ import type { Project, Task } from '#db/schema.server.ts';
 import type { TaskStatus } from '#modules/tasks/types.ts';
 import { commentMarker, commentOnIssue, readIssue } from '#modules/github/issues.server.ts';
 import { findPreviewUrl, listReviewComments, type ReviewComment } from '#modules/github/pr.server.ts';
+import { repoToken } from '#modules/github/app.server.ts';
 import { createTaskMachine, execLong, readFile, shellQuote, type ExecOptions, type ExecResult } from './pilots.server.ts';
 import { runClaude, type ClaudeRun, type RunClaudeOptions } from './claude.server.ts';
 import { cloneRepo, gitEnv, pushBranch } from './git.server.ts';
@@ -67,8 +74,10 @@ export interface StageDeps {
   execLong: (machineId: string, cmd: string, opts: ExecOptions) => Promise<ExecResult>;
   readFile: (machineId: string, path: string) => Promise<string>;
   runClaude: (machineId: string, opts: RunClaudeOptions) => Promise<ClaudeRun>;
-  cloneRepo: (machineId: string, project: Project, opts: { dir: string }) => Promise<void>;
-  pushBranch: (machineId: string, dir: string, branch: string) => Promise<void>;
+  cloneRepo: (machineId: string, project: Project, opts: { dir: string; token: string | null }) => Promise<void>;
+  pushBranch: (machineId: string, dir: string, branch: string, opts: { token: string | null }) => Promise<void>;
+  // The GitHub token the machine acts with for this project, or null.
+  repoToken: (project: Project) => Promise<string | null>;
   commentOnIssue: (project: Project, issueNumber: number, body: string) => Promise<unknown>;
   readIssue: (project: Project, issueNumber: number) => Promise<{ title: string; body: string }>;
   findPreviewUrl: (project: Project, prNumber: number, opts: { sha: string }) => Promise<string | null>;
@@ -79,7 +88,7 @@ export interface StageDeps {
 }
 
 const defaults: StageDeps = {
-  createTaskMachine, execLong, readFile, runClaude, cloneRepo, pushBranch, commentOnIssue, readIssue, findPreviewUrl, listReviewComments,
+  createTaskMachine, execLong, readFile, runClaude, cloneRepo, pushBranch, repoToken, commentOnIssue, readIssue, findPreviewUrl, listReviewComments,
   timing: {
     logPollMs: 5_000,
     previewPollMs: 15_000,
@@ -206,8 +215,9 @@ export async function plan(task: Task, project: Project): Promise<TaskStatus> {
     ...text, repo: project.githubRepo, appDir: APP_DIR, planPath: PLAN_PATH, maxTurns: String(PLAN_MAX_TURNS), stackNote: stackNote(empty, branch),
   });
   await recordEvent(task.id, 'log', 'Planning (timeboxed to 3 minutes)');
+  const githubToken = await deps.repoToken(project);
   await withLogFeed(task.id, machineId, () =>
-    claude(machineId, { prompt, cwd: APP_DIR, timeoutMs: PLAN_TIMEOUT_MS, maxTurns: PLAN_MAX_TURNS, logPath: AGENT_LOG }));
+    claude(machineId, { prompt, cwd: APP_DIR, timeoutMs: PLAN_TIMEOUT_MS, maxTurns: PLAN_MAX_TURNS, logPath: AGENT_LOG, githubToken }));
   const planText = (await deps.readFile(machineId, PLAN_PATH).catch(() => '')).trim();
   if (!planText) throw new Error('Planning produced no PLAN.md within the timebox.');
   await patchTask(task.id, { plan: planText });
@@ -236,17 +246,16 @@ export async function ensureMachine(task: Task, project: Project): Promise<TaskS
     await recordEvent(task.id, 'log', `Machine ${m.name} ready`);
   }
   if (!cloned) {
-    await deps.cloneRepo(machineId, project, { dir: APP_DIR });
+    await deps.cloneRepo(machineId, project, { dir: APP_DIR, token: await deps.repoToken(project) });
     await recordEvent(task.id, 'log', `Cloned ${project.githubRepo} into ${APP_DIR}`);
   }
   return 'planning';
 }
 
-// The env that lets gh in the machine reach GitHub. Empty when no token is
-// configured, in which case gh answers with its own error and the stage
+// The env that lets gh in the machine reach GitHub. Empty when the project
+// has no token, in which case gh answers with its own error and the stage
 // reports it.
-function ghEnv(): Record<string, string> {
-  const token = process.env.GH_TOKEN;
+function ghEnv(token: string | null): Record<string, string> {
   return token ? gitEnv(token) : {};
 }
 
@@ -285,7 +294,7 @@ export async function build(task: Task, project: Project): Promise<TaskStatus> {
   const machineId = requireMachine(task);
   const branch = task.branch ?? branchFor(task);
   if (!task.branch) await patchTask(task.id, { branch });
-  let pr = task.prNumber && task.prUrl ? { number: task.prNumber, url: task.prUrl } : await findOpenPr(machineId, branch);
+  let pr = task.prNumber && task.prUrl ? { number: task.prNumber, url: task.prUrl } : await findOpenPr(machineId, branch, await deps.repoToken(project));
   if (!pr) {
     const text = await taskText(task, project);
     const closesLine = task.githubIssueNumber ? `Closes #${task.githubIssueNumber}` : `Task: ${task.title}`;
@@ -296,15 +305,17 @@ export async function build(task: Task, project: Project): Promise<TaskStatus> {
       branch, defaultBranch: project.defaultBranch, closesLine, stackNote: stackNote(empty, branch),
     });
     await recordEvent(task.id, 'log', `Building on ${branch}`);
+    const githubToken = await deps.repoToken(project);
     await withLogFeed(task.id, machineId, () =>
-      claude(machineId, { prompt, cwd: APP_DIR, timeoutMs: BUILD_TIMEOUT_MS, maxTurns: BUILD_MAX_TURNS, logPath: AGENT_LOG }));
-    pr = (await findOpenPr(machineId, branch)) ?? (await openPrBackstop(task, project, machineId, branch, closesLine));
+      claude(machineId, { prompt, cwd: APP_DIR, timeoutMs: BUILD_TIMEOUT_MS, maxTurns: BUILD_MAX_TURNS, logPath: AGENT_LOG, githubToken }));
+    const token = await deps.repoToken(project);
+    pr = (await findOpenPr(machineId, branch, token)) ?? (await openPrBackstop(task, project, machineId, branch, closesLine, token));
   }
   await patchTask(task.id, { prNumber: pr.number, prUrl: pr.url });
   await recordEvent(task.id, 'github', `Pull request #${pr.number} ${pr.url}`);
   // A re-claim that already had the PR was reviewed by the attempt that
   // opened it; reviewing again would post the comments twice.
-  if (!task.prNumber && selfReviewEnabled()) await selfReview(task, machineId, branch, pr.number);
+  if (!task.prNumber && selfReviewEnabled()) await selfReview(task, project, machineId, branch, pr.number);
   const sha = await headSha(machineId, branch);
   const previewUrl = await awaitPreview(task, project, machineId, pr.number, sha);
   await patchTask(task.id, { previewUrl });
@@ -331,13 +342,14 @@ export async function revise(task: Task, project: Project): Promise<TaskStatus> 
     repo: project.githubRepo, appDir: APP_DIR, branch, defaultBranch: project.defaultBranch, prNumber: String(prNumber),
   });
   await recordEvent(task.id, 'log', `Revising on ${branch} (timeboxed to ${Math.round(REVISE_TIMEOUT_MS / 60_000)} minutes)`);
+  const githubToken = await deps.repoToken(project);
   await withLogFeed(task.id, machineId, () =>
-    claude(machineId, { prompt, cwd: APP_DIR, timeoutMs: REVISE_TIMEOUT_MS, maxTurns: REVISE_MAX_TURNS, logPath: AGENT_LOG }));
+    claude(machineId, { prompt, cwd: APP_DIR, timeoutMs: REVISE_TIMEOUT_MS, maxTurns: REVISE_MAX_TURNS, logPath: AGENT_LOG, githubToken }));
   const commit = await deps.execLong(machineId,
     `git diff --quiet HEAD -- . || (git add -A && git commit -q -m "Apply the review feedback" && echo committed)`,
     { cwd: APP_DIR, timeoutMs: 60_000 });
   if (commit.stdout.includes('committed')) await recordEvent(task.id, 'log', 'Committed the changes the run left in the working tree');
-  await deps.pushBranch(machineId, APP_DIR, branch);
+  await deps.pushBranch(machineId, APP_DIR, branch, { token: await deps.repoToken(project) });
   const sha = await headSha(machineId, branch);
   await recordEvent(task.id, 'log', `Pushed ${sha.slice(0, 7)} to ${branch}; Pilots is rebuilding the preview`);
   const previewUrl = await awaitPreview(task, project, machineId, prNumber, sha);
@@ -400,12 +412,13 @@ export function parseSelfReview(text: string): { fixed: number; comments: number
 // becomes a feed line and the task proceeds. Genie then commits any tracked
 // change the skill left unstaged and pushes, so the sha the preview waits
 // for is the reviewed code.
-async function selfReview(task: Task, machineId: string, branch: string, prNumber: number): Promise<void> {
+async function selfReview(task: Task, project: Project, machineId: string, branch: string, prNumber: number): Promise<void> {
   await recordEvent(task.id, 'log', `Self-review of pull request #${prNumber} (timeboxed to 10 minutes)`);
   let run: ClaudeRun;
   try {
+    const githubToken = await deps.repoToken(project);
     run = await withLogFeed(task.id, machineId, () => deps.runClaude(machineId, {
-      prompt: `/code-review --fix --comment ${prNumber}`, cwd: APP_DIR, timeoutMs: SELF_REVIEW_TIMEOUT_MS, maxTurns: SELF_REVIEW_MAX_TURNS, logPath: AGENT_LOG,
+      prompt: `/code-review --fix --comment ${prNumber}`, cwd: APP_DIR, timeoutMs: SELF_REVIEW_TIMEOUT_MS, maxTurns: SELF_REVIEW_MAX_TURNS, logPath: AGENT_LOG, githubToken,
     }));
   } catch (err) {
     await recordEvent(task.id, 'log', `Self-review skipped: ${err instanceof Error ? err.message : String(err)}`);
@@ -423,7 +436,7 @@ async function selfReview(task: Task, machineId: string, branch: string, prNumbe
       `git diff --quiet HEAD -- . || (git add -u && git commit -q -m "Apply the self-review findings" && echo committed)`,
       { cwd: APP_DIR, timeoutMs: 60_000 });
     if (commit.stdout.includes('committed')) await recordEvent(task.id, 'log', 'Committed the self-review fixes the run left in the working tree');
-    await deps.pushBranch(machineId, APP_DIR, branch);
+    await deps.pushBranch(machineId, APP_DIR, branch, { token: await deps.repoToken(project) });
   } catch (err) {
     await recordEvent(task.id, 'log', `Self-review push failed: ${err instanceof Error ? err.message : String(err)}`);
   }
@@ -438,8 +451,8 @@ export async function headSha(machineId: string, branch: string): Promise<string
   return sha;
 }
 
-async function findOpenPr(machineId: string, branch: string): Promise<{ number: number; url: string } | null> {
-  const r = await deps.execLong(machineId, `gh pr list --head ${shellQuote(branch)} --state open --json number,url --limit 1`, { cwd: APP_DIR, env: ghEnv(), timeoutMs: 60_000 });
+async function findOpenPr(machineId: string, branch: string, token: string | null): Promise<{ number: number; url: string } | null> {
+  const r = await deps.execLong(machineId, `gh pr list --head ${shellQuote(branch)} --state open --json number,url --limit 1`, { cwd: APP_DIR, env: ghEnv(token), timeoutMs: 60_000 });
   if (r.exitCode !== 0) return null;
   try {
     const list = JSON.parse(r.stdout || '[]') as { number: number; url: string }[];
@@ -451,16 +464,16 @@ async function findOpenPr(machineId: string, branch: string): Promise<{ number: 
 
 // The agent ran out of turns or time before the PR step. Push what it
 // committed and open the PR ourselves; a PR with a thin body beats none.
-async function openPrBackstop(task: Task, project: Project, machineId: string, branch: string, closesLine: string): Promise<{ number: number; url: string }> {
+async function openPrBackstop(task: Task, project: Project, machineId: string, branch: string, closesLine: string, token: string | null): Promise<{ number: number; url: string }> {
   const has = await deps.execLong(machineId, `git rev-parse --verify ${shellQuote(branch)}`, { cwd: APP_DIR, timeoutMs: 30_000 });
   if (has.exitCode !== 0) throw new Error(`The build produced no branch ${branch}.`);
-  await deps.pushBranch(machineId, APP_DIR, branch);
+  await deps.pushBranch(machineId, APP_DIR, branch, { token });
   const body = `${closesLine}\n\nOpened by Genie after the build run ended before its own PR step. Review the commits on ${branch}.`;
   const r = await deps.execLong(machineId,
     `printf '%s' ${shellQuote(body)} > ${PR_BODY_PATH} && gh pr create --base ${shellQuote(project.defaultBranch)} --head ${shellQuote(branch)} --title ${shellQuote(task.title.slice(0, 70))} --body-file ${PR_BODY_PATH}`,
-    { cwd: APP_DIR, env: ghEnv(), timeoutMs: 120_000 });
+    { cwd: APP_DIR, env: ghEnv(token), timeoutMs: 120_000 });
   if (r.exitCode !== 0) throw new Error(`gh pr create failed: ${r.stderr.trim()}`);
-  const pr = await findOpenPr(machineId, branch);
+  const pr = await findOpenPr(machineId, branch, token);
   if (!pr) throw new Error('The pull request was created but gh pr list cannot find it.');
   await recordEvent(task.id, 'log', "Opened the pull request on the agent's behalf");
   return pr;
