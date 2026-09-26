@@ -62,6 +62,7 @@ export default function SiteLayout({ children }: LayoutProps) {
         <span class="inline-flex items-center gap-2 font-mono" style="--logo-accent: var(--glow)">${brandMark(16)} genie</span>
         <nav class="flex flex-wrap items-center gap-4" aria-label="Footer">
           <a href="/brand" class="no-underline hover:text-foreground">Brand</a>
+          <a href="/pitch-deck" class="no-underline hover:text-foreground">Pitch deck</a>
           <a href="https://github.com/vivek7405/genie" target="_blank" rel="noopener" class="no-underline hover:text-foreground">GitHub</a>
           <a href="https://webjs.dev" target="_blank" rel="noopener" class="no-underline hover:text-foreground">Built with WebJs</a>
           <a href="https://pilots.run" target="_blank" rel="noopener" class="no-underline hover:text-foreground">Runs on Pilots</a>
