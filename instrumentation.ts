@@ -1,16 +1,12 @@
-// Optional boot-time hook (app root, sibling of app/). register() runs once at
-// server start, the place to wire APM / logging / tracing. setOnError(fn) (from
-// @webjsdev/server) registers a sink for every request error the framework
-// catches (an SSR render crash, a thrown server action, a 500), so you can
-// forward it to Sentry / a logger with the request context. Call setOnError
-// INSIDE register() so it runs within the instrumentation context (a top-level
-// call has no context yet and is a no-op). Delete this file if you do not need
-// the hook.
+// Boot-time hook: runs once at server start. It is genie's only in-framework
+// seam for a resident process, so the pipeline worker starts here. Set
+// GENIE_WORKER=0 to boot the UI without it (tests do).
 import { setOnError } from '@webjsdev/server';
+import { startWorker } from '#modules/pipeline/worker.server.ts';
 
 export function register() {
   setOnError((error, ctx) => {
-    // Replace with your APM. `ctx` carries request context (e.g. a correlation id).
-    console.error('[instrumentation] request error:', error, ctx ?? '');
+    console.error('[genie] request error:', error, ctx ?? '');
   });
+  if (process.env.GENIE_WORKER !== '0') startWorker();
 }

@@ -25,21 +25,21 @@
     "db:seed": "webjs db seed"
   },
   "dependencies": {
-    "drizzle-orm": "1.0.0-rc.3",
     "@webjsdev/cli": "latest",
-    "@webjsdev/core": "latest",
-    "@webjsdev/server": "latest"
+    "@webjsdev/core": "^0.7.54",
+    "@webjsdev/server": "latest",
+    "drizzle-orm": "1.0.0-rc.3"
   },
   "devDependencies": {
-    "drizzle-kit": "1.0.0-rc.3",
-    "typescript": "^6.0.3",
+    "@tailwindcss/cli": "^4.1.0",
     "@types/node": "^24.0.0",
     "@web/test-runner": "^0.20.0",
     "@web/test-runner-playwright": "^0.11.0",
-    "playwright": "^1.59.0",
+    "@webjsdev/intellisense": "latest",
     "axe-core": "^4.10.0",
-    "@tailwindcss/cli": "^4.1.0",
-    "@webjsdev/intellisense": "latest"
+    "drizzle-kit": "1.0.0-rc.3",
+    "playwright": "^1.59.0",
+    "typescript": "^6.0.3"
   },
   "overrides": {
     "puppeteer-core": "^25.7.0"
