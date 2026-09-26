@@ -24,6 +24,7 @@ export const jsonResponse = (body: unknown, status = 200, headers: Record<string
 export function fakeGithub() {
   const calls: Call[] = [];
   const rest = new Map<string, RestHandler>();
+  const patterns: { method: string; re: RegExp; handler: (call: Call, match: RegExpMatchArray) => unknown }[] = [];
   const graphql: { match: string; handler: GraphqlHandler }[] = [];
 
   const transport: GithubTransport = async (url, init) => {
@@ -42,8 +43,13 @@ export function fakeGithub() {
       return out instanceof Response ? out : jsonResponse({ data: out });
     }
     const handler = rest.get(`${method} ${path}`);
-    if (!handler) return jsonResponse({ message: `fake: no handler for ${method} ${path}` }, 404);
-    const out = handler(call);
+    let out: unknown;
+    if (handler) out = handler(call);
+    else {
+      const entry = patterns.map((p) => ({ p, m: p.method === method ? path.match(p.re) : null })).find((x) => x.m);
+      if (!entry) return jsonResponse({ message: `fake: no handler for ${method} ${path}` }, 404);
+      out = entry.p.handler(call, entry.m!);
+    }
     if (out instanceof Response) return out;
     if (out === undefined) return new Response(null, { status: 204 });
     return jsonResponse(out);
@@ -56,6 +62,11 @@ export function fakeGithub() {
     graphql,
     on(method: string, path: string, handler: RestHandler) {
       rest.set(`${method.toUpperCase()} ${path.replace(/^\//, '')}`, handler);
+      return this;
+    },
+    // A regex route, consulted after the exact ones. `match` is the path match.
+    onMatch(method: string, re: RegExp, handler: (call: Call, match: RegExpMatchArray) => unknown) {
+      patterns.push({ method: method.toUpperCase(), re, handler });
       return this;
     },
     onGraphql(match: string, handler: GraphqlHandler) {
