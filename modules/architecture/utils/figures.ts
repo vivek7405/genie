@@ -261,7 +261,7 @@ export function redeployFigure() {
       ${note({ x: 20, y: 176, text: 'task machine', strong: true })}
 
       ${box({ x: 130, y: 50, w: 200, h: 44, label: 'build stage running', sub: 'claim held' })}
-      ${box({ x: 360, y: 50, w: 120, h: 44, label: 'power cut', sub: 'the VMM is stopped', tone: 'dead' })}
+      ${box({ x: 360, y: 50, w: 120, h: 44, label: 'power cut', sub: 'the machine is stopped', tone: 'dead' })}
       ${box({ x: 510, y: 50, w: 170, h: 44, label: 'new replica boots', sub: 'every claim released' })}
       ${box({ x: 710, y: 50, w: 190, h: 44, label: 'first tick re-claims', sub: 'same machine, branch, PR', tone: 'signal' })}
 
