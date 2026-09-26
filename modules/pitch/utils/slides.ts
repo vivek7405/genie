@@ -78,7 +78,9 @@ export const SLIDES: readonly Slide[] = [
       'Cancel and steer from the board: removing the genie label mid-run stops the agent and closes its PR; a comment redirects it. Today the label is a one-way opt-in at pick-up.',
       'Parallel tasks with per-repo locks, cost and time budgets, and rate-limit backoff on the subscription window.',
       'Agent-written tests as a merge gate, and a second agent that reviews before a human does.',
-      'Monorepos and non-WebJs stacks (pilots already detects Next, Rails, Django, Go), then a hosted genie.',
+      'Open the sandbox to the reviewer: Pilots already lets a person take over the code an agent wrote inside a machine, through its VS Code plugin or a terminal for the nerds, so a card could hand you the live sandbox, not only the pull request.',
+      'Promote the database from SQLite to Postgres once more than one replica or one team shares a Genie.',
+      'Monorepos and non-WebJs stacks (Pilots already detects Next, Rails, Django, Go), then a hosted Genie.',
     ],
   },
 ];
