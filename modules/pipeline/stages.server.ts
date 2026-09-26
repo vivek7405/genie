@@ -32,6 +32,8 @@ const PLAN_TIMEOUT_MS = 180_000;
 const PLAN_MAX_TURNS = 12;
 const BUILD_TIMEOUT_MS = Number(process.env.GENIE_BUILD_TIMEOUT_MS ?? 2_700_000);
 const BUILD_MAX_TURNS = 200;
+const SELF_REVIEW_TIMEOUT_MS = 600_000;
+const SELF_REVIEW_MAX_TURNS = 60;
 const PR_BODY_PATH = '/home/pilot/pr-body.md';
 const APP_PORT = 8080;
 // A repository with none of these and fewer than EMPTY_REPO_MAX_FILES tracked
@@ -288,10 +290,75 @@ export async function build(task: Task, project: Project): Promise<TaskStatus> {
   }
   await patchTask(task.id, { prNumber: pr.number, prUrl: pr.url });
   await recordEvent(task.id, 'github', `Pull request #${pr.number} ${pr.url}`);
+  // A re-claim that already had the PR was reviewed by the attempt that
+  // opened it; reviewing again would post the comments twice.
+  if (!task.prNumber && selfReviewEnabled()) await selfReview(task, machineId, branch, pr.number);
   const sha = await headSha(machineId, branch);
   const previewUrl = await awaitPreview(task, project, machineId, pr.number, sha);
   await patchTask(task.id, { previewUrl });
   return 'ready_for_review';
+}
+
+export function selfReviewEnabled(): boolean {
+  return process.env.GENIE_SELF_REVIEW !== '0';
+}
+
+// The counts in the run's free-form summary, best effort: "Fixed 2
+// findings and left 3 comments" or "3 inline comments posted, 2 issues
+// applied". A count that cannot be read is 0.
+export function parseSelfReview(text: string): { fixed: number; comments: number } {
+  const first = (patterns: RegExp[]): number => {
+    for (const re of patterns) {
+      const m = re.exec(text);
+      if (m) return Number(m[1]);
+    }
+    return 0;
+  };
+  const fixed = first([
+    /(\d+)\s+(?:findings?|issues?|fixes|problems?)\b[^.\n]*?\b(?:fixed|applied|resolved|addressed)/i,
+    /\b(?:fixed|applied|resolved|addressed)\s+(?:all\s+)?(\d+)/i,
+  ]);
+  const comments = first([
+    /(\d+)\s+(?:inline\s+|review\s+|new\s+)?comments?/i,
+    /\b(?:posted|left)\s+(\d+)/i,
+  ]);
+  return { fixed, comments };
+}
+
+// Claude Code's own code-review skill, run on the PR from the same branch:
+// it fixes the findings in the working tree, commits, pushes, and posts the
+// comments through gh. The PR exists whatever happens here, so nothing in
+// this function fails the stage: a bad exit, a rate limit or a thrown run
+// becomes a feed line and the task proceeds. Genie then commits any tracked
+// change the skill left unstaged and pushes, so the sha the preview waits
+// for is the reviewed code.
+async function selfReview(task: Task, machineId: string, branch: string, prNumber: number): Promise<void> {
+  await recordEvent(task.id, 'log', `Self-review of pull request #${prNumber} (timeboxed to 10 minutes)`);
+  let run: ClaudeRun;
+  try {
+    run = await deps.runClaude(machineId, {
+      prompt: `/code-review --fix --comment ${prNumber}`, cwd: APP_DIR, timeoutMs: SELF_REVIEW_TIMEOUT_MS, maxTurns: SELF_REVIEW_MAX_TURNS, logPath: AGENT_LOG,
+    });
+  } catch (err) {
+    await recordEvent(task.id, 'log', `Self-review skipped: ${err instanceof Error ? err.message : String(err)}`);
+    return;
+  }
+  if (run.isRateLimited) {
+    await recordEvent(task.id, 'log', 'Self-review skipped: Claude is rate limited');
+    return;
+  }
+  const { fixed, comments } = parseSelfReview(run.result);
+  const suffix = run.exitCode === 0 ? '' : ` (the run ended with exit ${run.exitCode})`;
+  await recordEvent(task.id, 'log', `Self-review: ${fixed} findings fixed, ${comments} comments left${suffix}`);
+  try {
+    const commit = await deps.execLong(machineId,
+      `git diff --quiet HEAD -- . || (git add -u && git commit -q -m "Apply the self-review findings" && echo committed)`,
+      { cwd: APP_DIR, timeoutMs: 60_000 });
+    if (commit.stdout.includes('committed')) await recordEvent(task.id, 'log', 'Committed the self-review fixes the run left in the working tree');
+    await deps.pushBranch(machineId, APP_DIR, branch);
+  } catch (err) {
+    await recordEvent(task.id, 'log', `Self-review push failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 // The pushed head, so the preview poll only accepts a preview of this
