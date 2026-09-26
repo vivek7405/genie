@@ -5,7 +5,7 @@
 // these ONLY from components (which ship anyway), never from a page/layout.
 
 /**
- * Run `reset` just before the webjs client router snapshots the page into its
+ * Run `reset` just before the WebJs client router snapshots the page into its
  * back/forward cache (the `webjs:before-cache` event). Transient overlays use
  * this to close themselves so a restored snapshot is clean. SSR-safe (a no-op
  * when there is no `document`). Wire it in `connectedCallback` and call the

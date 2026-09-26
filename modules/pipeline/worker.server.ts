@@ -1,4 +1,4 @@
-// The in-process job runner. webjs has no queue or scheduler, so genie keeps
+// The in-process job runner. WebJs has no queue or scheduler, so genie keeps
 // one worker loop alive from instrumentation.ts and uses the tasks table as
 // the queue: a task in a system-owned stage with no error is work to do.
 import { and, inArray, isNull, or, lt, eq, sql } from 'drizzle-orm';

@@ -9,7 +9,7 @@ import { cn } from '#lib/utils/cn.ts';
 //   hero      write the task, come back to a pull request with a preview
 //   loop      the four steps, and who owns which
 //   sandbox   every task gets its own computer, and nothing of yours is on it
-//   stack     it speaks the repository's language; webjs only for a new app
+//   stack     it speaks the repository's language; WebJs only for a new app
 //   built     the two open-source pieces underneath
 // Every section stands alone: a reader arriving mid-page from a link must be
 // able to read a heading and its first sentence with nothing above it.
@@ -96,7 +96,7 @@ export default function Home() {
               <a class=${cn(buttonClass(), 'no-underline')} href="/dashboard" data-no-router>Open the dashboard</a>
               <a class=${cn(buttonClass({ variant: 'outline' }), 'no-underline')} href="#loop">How it works</a>
             </div>
-            <p class="mt-6 text-meta text-muted-foreground">Open source. Built with webjs, runs its sandboxes on pilots.</p>
+            <p class="mt-6 text-meta text-muted-foreground">Open source. Built with WebJs, runs its sandboxes on pilots.</p>
           </div>
           <div class="lg:pl-4">${heroFeed()}</div>
         </div>
@@ -156,7 +156,7 @@ export default function Home() {
           </div>
           <div class=${cn(cardClass(), 'p-5')}>
             <span class=${fieldLabelClass()}>A new app</span>
-            <p class="m-0 mt-2 text-body">An empty repository, or a new web app inside a monorepo, is scaffolded with webjs: no build step, server-rendered, a design system from the first commit. The scaffold lands as its own commit before the task is built on it.</p>
+            <p class="m-0 mt-2 text-body">An empty repository, or a new web app inside a monorepo, is scaffolded with WebJs: no build step, server-rendered, a design system from the first commit. The scaffold lands as its own commit before the task is built on it.</p>
           </div>
         </div>`,
     })}
@@ -165,11 +165,11 @@ export default function Home() {
       id: 'built',
       layout: 'split',
       heading: 'Two open-source pieces underneath',
-      lede: 'genie is a small webjs app with a SQLite queue and a worker. The heavy lifting is done by the framework it is built with and the platform it runs on.',
+      lede: 'genie is a small WebJs app with a SQLite queue and a worker. The heavy lifting is done by the framework it is built with and the platform it runs on.',
       body: html`
         <div class="grid gap-5 md:grid-cols-2">
           <a href="https://webjs.dev" target="_blank" rel="noopener" class=${cn(cardClass(), 'block p-5 no-underline transition-colors hover:border-border-strong')}>
-            <span class="font-mono text-heading font-semibold text-foreground">webjs</span>
+            <span class="text-heading font-semibold text-foreground">WebJs</span>
             <p class="m-0 mt-2 text-meta text-muted-foreground">The buildless, server-first framework. Pages are HTML, islands hydrate where they must, frames and WebSockets make the board live with almost no client code.</p>
           </a>
           <a href="https://pilots.run" target="_blank" rel="noopener" class=${cn(cardClass(), 'block p-5 no-underline transition-colors hover:border-border-strong')}>
