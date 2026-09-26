@@ -63,7 +63,7 @@ export const SLIDES: readonly Slide[] = [
     kicker: '5 · Key technical choices',
     title: 'Two open-source primitives and a strict credential rule',
     points: [
-      'webjs: a buildless, server-first web framework. Pages render as HTML, islands hydrate where needed, frames and WebSockets give the live board with almost no client code.',
+      'WebJs: a buildless, server-first web framework. Pages render as HTML, islands hydrate where needed, frames and WebSockets give the live board with almost no client code.',
       'pilots: sandboxes and services on one primitive. A machine costs nothing while idle, wakes on request, and the GitHub App gives every PR a preview URL and deploys on merge.',
       'GitHub stays the mirror, not the source of truth: no webhooks needed, one GraphQL query per project per tick, REST everywhere else.',
       'The Claude credential rides as the environment of one process inside the machine and is never written to disk, so a snapshot or a fork carries nothing.',
@@ -78,7 +78,7 @@ export const SLIDES: readonly Slide[] = [
       'Cancel and steer from the board: removing the genie label mid-run stops the agent and closes its PR; a comment redirects it. Today the label is a one-way opt-in at pick-up.',
       'Parallel tasks with per-repo locks, cost and time budgets, and rate-limit backoff on the subscription window.',
       'Agent-written tests as a merge gate, and a second agent that reviews before a human does.',
-      'Monorepos and non-webjs stacks (pilots already detects Next, Rails, Django, Go), then a hosted genie.',
+      'Monorepos and non-WebJs stacks (pilots already detects Next, Rails, Django, Go), then a hosted genie.',
     ],
   },
 ];
