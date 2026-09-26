@@ -23,6 +23,9 @@ services:
       DATABASE_URL: file:/data/genie.db
       GENIE_WORKER: "1"
       GENIE_CONCURRENCY: "1"
+      # How long to wait for a Pilots PR preview before serving the app from the
+      # task machine. Short while the demo repository is not connected to Pilots.
+      GENIE_PREVIEW_TIMEOUT_MS: "45000"
       PILOT_API_KEY: secret://pilot_api_key
       CLAUDE_CODE_OAUTH_TOKEN: secret://claude_code_oauth_token
       GITHUB_APP_ID: secret://github_app_id
