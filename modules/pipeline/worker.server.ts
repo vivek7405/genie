@@ -202,30 +202,34 @@ async function run(task: Task): Promise<void> {
   // A deferred re-claim resumes the same attempt; every other claim is a new
   // stage start, which is what the card's "attempt N" counts.
   const resuming = task.deferredUntil != null;
-  const [claimed] = await db
-    .update(tasks)
-    .set({
-      claimedAt: new Date(),
-      deferredUntil: null,
-      deferReason: null,
-      ...(resuming ? {} : { attempt: sql`${tasks.attempt} + 1` }),
-    })
-    .where(eq(tasks.id, task.id))
-    .returning();
-  if (task.claimedAt) {
-    const minutes = Math.round((Date.now() - task.claimedAt.getTime()) / 60_000);
-    await recordEvent(claimed.id, 'log', `Claim from attempt ${task.attempt} expired after ${minutes} min, re-claiming`);
-  }
+  let deferCount = task.deferCount;
   try {
+    const [claimed] = await db
+      .update(tasks)
+      .set({
+        claimedAt: new Date(),
+        deferredUntil: null,
+        deferReason: null,
+        ...(resuming ? {} : { attempt: sql`${tasks.attempt} + 1` }),
+      })
+      .where(eq(tasks.id, task.id))
+      .returning();
+    deferCount = claimed.deferCount;
+    if (task.claimedAt) {
+      const minutes = Math.round((Date.now() - task.claimedAt.getTime()) / 60_000);
+      await recordEvent(claimed.id, 'log', `Claim from attempt ${task.attempt} expired after ${minutes} min, re-claiming`);
+    }
     const next = await stageRunner(claimed);
     if (next) await transition(claimed.id, next, 'system');
   } catch (err) {
     const limit = rateLimitOf(err);
     if (limit) {
-      await deferTask(claimed.id, nextDeferral(claimed.deferCount, limit.resetsAt), RATE_LIMIT_REASON);
+      await deferTask(task.id, nextDeferral(deferCount, limit.resetsAt), RATE_LIMIT_REASON);
       return;
     }
-    await failStage(claimed.id, message(err));
+    // Nothing here may reject into the void: a failure to record the failure
+    // is logged, and the claim goes stale on its own.
+    await failStage(task.id, message(err)).catch((again: unknown) => console.error(`[genie] failStage for ${task.id} failed: ${message(again)}`));
   }
 }
 
