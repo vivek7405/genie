@@ -1,6 +1,6 @@
 # genie on pilots
 
-genie runs every task inside its own pilots machine: a microVM with Claude
+Genie runs every task inside its own Pilots machine: a computer with Claude
 Code signed in for one process, the task's repository cloned, and nothing of
 yours to wreck. This page is the operator's view of that layer. The code is
 under `modules/pipeline/` (`pilots.server.ts`, `claude.server.ts`,
