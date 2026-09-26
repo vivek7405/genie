@@ -1,5 +1,5 @@
 import { defineRelations } from 'drizzle-orm';
-import { table, uuidPk, text, integer, json, createdAt, updatedAt, timestamp } from './columns.server.ts';
+import { table, uuidPk, text, integer, json, createdAt, updatedAt, timestamp, uniqueIndex } from './columns.server.ts';
 import type { EventKind, TaskStatus } from '#modules/tasks/types.ts';
 
 // A project is a linked GitHub repository, optionally paired with the GitHub
@@ -16,6 +16,10 @@ export const projects = table('projects', {
   statusOptionIds: json<Partial<Record<TaskStatus, string>>>(),
   productionUrl: text(),
   defaultBranch: text().notNull().default('main'),
+  // The last GitHub sync failure for this project (token scope, wrong board
+  // number, rate limit), shown on the board page. Null once a tick succeeds.
+  syncError: text(),
+  syncedAt: timestamp(),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
@@ -46,7 +50,7 @@ export const tasks = table('tasks', {
   syncedAt: timestamp(),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
-});
+}, (t) => [uniqueIndex('tasks_project_issue_idx').on(t.projectId, t.githubIssueNumber)]);
 
 // The per-card activity feed: status changes, agent log lines, errors, and
 // GitHub mirror events.

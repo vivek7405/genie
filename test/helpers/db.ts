@@ -10,6 +10,7 @@ import { dirname, resolve } from 'node:path';
 const dir = mkdtempSync(join(tmpdir(), 'genie-test-'));
 process.env.DATABASE_URL = `file:${join(dir, 'test.db')}`;
 process.env.GENIE_WORKER = '0';
+process.env.GENIE_SYNC = '0';
 
 export const appDir = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -18,5 +19,10 @@ const { migrate } = await import('drizzle-orm/node-sqlite/migrator');
 // The connection is typed for both runtimes; tests run on Node, so narrow to
 // what the Node migrator accepts.
 await migrate(db as Parameters<typeof migrate>[0], { migrationsFolder: join(appDir, 'db', 'migrations') });
+
+// No test talks to GitHub: every request fails fast and deterministically
+// unless a test installs its own scripted fake (test/helpers/github.ts).
+const { setGithubTransport } = await import('#modules/github/client.server.ts');
+setGithubTransport(async () => new Response('offline in tests', { status: 503 }));
 
 export { db };
