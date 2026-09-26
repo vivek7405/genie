@@ -336,6 +336,10 @@ test('a repo nobody connected to Pilots gets its preview from the task machine w
   assert.equal((await reload(task.id)).previewUrl, 'https://genie-stages-m1.pilotrun.app');
   assert.equal(fake.previews.length, 0, 'the pull request is never polled for a preview');
   assert.equal(fake.commands('setsid nohup').length, 1);
+  const [stop] = fake.commands('fuser -k');
+  assert.ok(stop.includes('8080/tcp'), 'whatever already serves the port is stopped before the restart');
+  const order = fake.timeline.length;
+  assert.ok(order > 0);
   const logs = await messages(task.id, 'log');
   assert.ok(logs.some((m) => m.includes('Starting a live preview')));
   assert.ok(!logs.some((m) => m.includes('Pilots')), 'the user is never told about Pilots');
