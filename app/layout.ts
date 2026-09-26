@@ -1,5 +1,7 @@
 import { html, asset, cspNonce } from '@webjsdev/core';
 import type { LayoutProps } from '@webjsdev/core';
+import { paletteCss } from '#lib/design/palette.ts';
+import { brandMark } from '#lib/design/logo.ts';
 import '#components/theme-toggle.ts';
 
 export const metadata = { title: { default: 'genie', template: '%s · genie' }, icons: '/public/favicon.svg' };
@@ -13,7 +15,7 @@ export default function RootLayout({ children, url }: LayoutProps) {
   const nonce = cspNonce();
   const nav = [
     { href: '/', label: 'Projects', on: path === '/' || path.startsWith('/projects') },
-    { href: '/pitch-deck', label: 'Pitch deck', on: path.startsWith('/pitch-deck') },
+    { href: '/brand', label: 'Brand', on: path.startsWith('/brand') },
   ];
   return html`
     <script nonce="${nonce}">
@@ -48,32 +50,32 @@ export default function RootLayout({ children, url }: LayoutProps) {
         --radius: 0.375rem;
         color-scheme: light dark;
 
-        /* The palette: ink on cool paper, a violet accent used only for the
-           primary action, live state and the focus ring. It never tints a
-           panel or a heading. */
-        --background:             light-dark(#fafaf8, #101113);
-        --card:                   light-dark(#ffffff, #17181c);
-        --card-foreground:        light-dark(#1a1b1f, #e8e7e3);
-        --popover:                light-dark(#ffffff, #17181c);
-        --popover-foreground:     light-dark(#1a1b1f, #e8e7e3);
-        --foreground:             light-dark(#1a1b1f, #e8e7e3);
-        --muted:                  light-dark(#f0efeb, #1d1f24);
-        --muted-foreground:       light-dark(#5d6069, #9a9ea8);
-        --secondary:              light-dark(#eeede9, #22242a);
-        --secondary-foreground:   light-dark(#1a1b1f, #e8e7e3);
-        --accent:                 light-dark(#eeede9, #22242a);
-        --accent-foreground:      light-dark(#1a1b1f, #e8e7e3);
-        --primary:                light-dark(#5b4dff, #8b80ff);
-        --primary-foreground:     light-dark(#ffffff, #0f0e1a);
-        --primary-tint:           light-dark(#e9e6ff, #221f3d);
-        --destructive:            light-dark(#b8391f, #ff7a5c);
+        /* The brand palette (lib/design/palette.ts): ink on warm paper, a
+           glow accent rationed to the primary action, live state and focus. */
+        ${paletteCss()}
+
+        /* The kit's names, each an alias of a brand token. */
+        --background:             var(--paper);
+        --foreground:             var(--ink);
+        --card:                   var(--paper-elev);
+        --card-foreground:        var(--ink);
+        --popover:                var(--paper-elev);
+        --popover-foreground:     var(--ink);
+        --primary:                var(--glow);
+        --primary-foreground:     var(--glow-ink);
+        --primary-tint:           var(--glow-tint);
+        --secondary:              var(--paper-subtle);
+        --secondary-foreground:   var(--ink);
+        --muted:                  var(--paper-subtle);
+        --muted-foreground:       var(--ink-muted);
+        --accent:                 var(--paper-subtle);
+        --accent-foreground:      var(--ink);
+        --destructive:            var(--alert);
         --destructive-foreground: light-dark(#ffffff, #12141a);
-        --success:                light-dark(#3f7d1a, #9be36a);
-        --warning:                light-dark(#9a5a04, #fbbf24);
-        --border:                 light-dark(#e3e1db, #262930);
-        --border-strong:          light-dark(#cbc8bf, #383c46);
-        --input:                  light-dark(#cbc8bf, #383c46);
-        --ring:                   light-dark(#5b4dff, #8b80ff);
+        --border:                 var(--rule);
+        --border-strong:          var(--rule-strong);
+        --input:                  var(--rule-strong);
+        --ring:                   var(--glow);
       }
       :root[data-theme='light'] { color-scheme: light; }
       :root[data-theme='dark'] { color-scheme: dark; }
@@ -95,8 +97,8 @@ export default function RootLayout({ children, url }: LayoutProps) {
     </style>
     <header class="fixed inset-x-0 top-0 z-40 border-b border-border bg-background">
       <div class="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:px-6">
-        <a href="/" class="flex shrink-0 items-center gap-2 font-mono text-body font-semibold tracking-tight text-foreground no-underline">
-          <span class="grid size-6 place-items-center rounded-sm bg-foreground text-background text-label font-bold" aria-hidden="true">g</span>
+        <a href="/" class="flex shrink-0 items-center gap-2 font-mono text-body font-semibold tracking-tight text-foreground no-underline" style="--logo-accent: var(--glow)">
+          ${brandMark(22)}
           genie
         </a>
         <nav class="ml-4 flex items-center gap-0.5" aria-label="Primary">

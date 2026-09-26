@@ -195,7 +195,23 @@
   --color-border-strong: var(--border-strong);
   --color-primary-tint: var(--primary-tint);
   --color-success: var(--success);
-  --color-warning: var(--warning);
+  /* The brand tokens under their own names (lib/design/palette.ts), so the
+     chrome and /brand can be written in the palette's vocabulary. The kit's
+     names above alias the same values in app/layout.ts. */
+  --color-paper:        var(--paper);
+  --color-paper-elev:   var(--paper-elev);
+  --color-paper-sunken: var(--paper-sunken);
+  --color-paper-subtle: var(--paper-subtle);
+  --color-ink:          var(--ink);
+  --color-ink-muted:    var(--ink-muted);
+  --color-ink-subtle:   var(--ink-subtle);
+  --color-rule:         var(--rule);
+  --color-rule-strong:  var(--rule-strong);
+  --color-glow:         var(--glow);
+  --color-glow-hover:   var(--glow-hover);
+  --color-glow-ink:     var(--glow-ink);
+  --color-glow-tint:    var(--glow-tint);
+  --color-alert:        var(--alert);
   --font-sans:  var(--font-sans);
   --font-serif: var(--font-serif);
   --font-mono:  var(--font-mono);
