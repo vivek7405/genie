@@ -1,7 +1,10 @@
 # Production image for the genie webjs app.
 #
 # Works with a plain `docker build` / `docker compose up`, and is the same
-# artifact the webdeploy hosting tool (ubicloud + uncloud) builds and ships.
+# artifact `pilot deploy` builds and ships: compose.pilots.yaml describes the
+# pilots shape (one replica, the SQLite file on a volume at /data, secrets by
+# reference) and declares the same readiness probe as the HEALTHCHECK below,
+# which readiness.ts extends with a read against the migrated database.
 #
 # webjs serves .ts directly by stripping types at the runtime layer, so there is
 # NO JavaScript build step (webjs is buildless end to end; there is no bundler or
@@ -21,11 +24,16 @@
 # framework AGENTS.md "Secure response headers" section.
 FROM node:24-alpine
 
-# ca-certificates for outbound TLS (e.g. a managed Postgres). SQLite uses the
-# built-in node:sqlite (no native module, no build toolchain needed).
-RUN apk add --no-cache ca-certificates
+# ca-certificates for outbound TLS. SQLite uses the built-in node:sqlite (no
+# native module, no build toolchain needed). github-cli because the demo reset
+# (scripts/demo-reset.ts, run inside the replica with `pilot exec`) and the
+# GitHub client's `gh auth token` fallback shell out to `gh`.
+RUN apk add --no-cache ca-certificates github-cli
 
 WORKDIR /app
+# The SQLite file lives on a volume mounted here on pilots. Create it so a
+# plain `docker run` with no volume still boots.
+RUN mkdir -p /data
 
 # Install deps first so this layer is cached unless the manifests change.
 # package-lock.json is optional (it's absent when the app was scaffolded with
@@ -41,7 +49,7 @@ COPY . .
 # step runs `webjs db migrate`). See the CMD note below.
 
 ENV NODE_ENV=production
-# webjs start reads $PORT (default 8080). compose / uncloud / Railway set it.
+# webjs start reads $PORT (default 8080). compose and pilots set it.
 ENV PORT=8080
 EXPOSE 8080
 
