@@ -89,6 +89,7 @@ export default async function TaskCard({ params, actionData }: CardProps) {
           <section>
             ${sectionHeading('Deliverables', 'What Genie hands back when the card is ready.')}
             ${panel(facts([
+              { label: 'Issue', value: task.githubIssueNumber != null ? ext(`https://github.com/${project.githubRepo}/issues/${task.githubIssueNumber}`, `#${task.githubIssueNumber}`) : pending },
               { label: 'Branch', value: task.branch ? html`<span class="font-mono text-meta">${task.branch}</span>` : pending },
               { label: 'Pull request', value: task.prUrl ? ext(task.prUrl, `#${task.prNumber}`) : pending },
               { label: 'Preview', value: task.previewUrl ? ext(task.previewUrl, task.previewUrl.replace(/^https?:\/\//, '')) : pending },

@@ -19,6 +19,7 @@ export function taskCard(task: Task) {
        class=${cn(cardClass(), 'block px-3.5 py-3 no-underline transition-colors hover:border-border-strong', task.error && 'border-destructive/50')}>
       <span class="flex items-start gap-2">
         <span class="min-w-0 flex-1 text-body font-medium leading-snug text-foreground">${task.title}</span>
+        ${task.githubIssueNumber != null ? html`<span class="shrink-0 font-mono text-label text-muted-foreground">#${task.githubIssueNumber}</span>` : ''}
         ${busy && !task.error ? liveDot(true, 'Genie is working') : ''}
       </span>
       ${meta.length ? html`<span class="mt-1.5 flex flex-wrap gap-x-3 font-mono text-label uppercase tracking-[0.12em] text-muted-foreground">${meta}</span>` : ''}
