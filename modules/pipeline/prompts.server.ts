@@ -6,8 +6,7 @@
 // happens to contain {{x}} stays as written.
 import { readFileSync } from 'node:fs';
 
-// #5 adds 'revise'.
-export type PromptName = 'plan' | 'build';
+export type PromptName = 'plan' | 'build' | 'revise';
 
 export function renderPrompt(name: PromptName, vars: Record<string, string>): string {
   const raw = readFileSync(new URL(`./prompts/${name}.md`, import.meta.url), 'utf8');
