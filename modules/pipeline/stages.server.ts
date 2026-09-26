@@ -17,12 +17,11 @@ import { db } from '#db/connection.server.ts';
 import { tasks } from '#db/schema.server.ts';
 import type { Project, Task } from '#db/schema.server.ts';
 import type { TaskStatus } from '#modules/tasks/types.ts';
-import { nextSystemStatus } from '#modules/tasks/utils/state-machine.ts';
 import { commentMarker, commentOnIssue, readIssue } from '#modules/github/issues.server.ts';
 import { findPreviewUrl } from '#modules/github/pr.server.ts';
-import { createTaskMachine, execLong, readFile, type ExecOptions, type ExecResult } from './pilots.server.ts';
+import { createTaskMachine, execLong, readFile, shellQuote, type ExecOptions, type ExecResult } from './pilots.server.ts';
 import { runClaude, type ClaudeRun, type RunClaudeOptions } from './claude.server.ts';
-import { cloneRepo, pushBranch } from './git.server.ts';
+import { cloneRepo, gitEnv, pushBranch } from './git.server.ts';
 import { recordEvent } from './events.server.ts';
 import { renderPrompt, slugify } from './prompts.server.ts';
 
@@ -31,6 +30,10 @@ export const PLAN_PATH = '/home/pilot/PLAN.md';
 export const AGENT_LOG = '/home/pilot/agent.log';
 const PLAN_TIMEOUT_MS = 180_000;
 const PLAN_MAX_TURNS = 12;
+const BUILD_TIMEOUT_MS = Number(process.env.GENIE_BUILD_TIMEOUT_MS ?? 2_700_000);
+const BUILD_MAX_TURNS = 200;
+const PR_BODY_PATH = '/home/pilot/pr-body.md';
+const APP_PORT = 8080;
 // A repository with none of these and fewer than EMPTY_REPO_MAX_FILES tracked
 // files has no application code: a README, LICENSE, .gitignore and a
 // workflow still count as empty.
@@ -92,9 +95,8 @@ export async function runStage(task: Task): Promise<TaskStatus | null> {
   switch (task.status) {
     case 'todo': return ensureMachine(task, project);
     case 'planning': return plan(task, project);
-    // in_progress still advances without work; the next commit replaces it
-    // with the real build stage.
-    default: return nextSystemStatus(task.status);
+    case 'in_progress': return build(task, project);
+    default: return null;
   }
 }
 
@@ -227,3 +229,138 @@ export async function ensureMachine(task: Task, project: Project): Promise<TaskS
   }
   return 'planning';
 }
+
+// The env that lets gh in the machine reach GitHub. Empty when no token is
+// configured, in which case gh answers with its own error and the stage
+// reports it.
+function ghEnv(): Record<string, string> {
+  const token = process.env.GH_TOKEN;
+  return token ? gitEnv(token) : {};
+}
+
+// #5 branches here on task.feedback to pick prompts/revise.md and to read
+// deps for the same-branch push. M4 always builds.
+export function buildOrRevise(_task: Task, _deps: StageDeps): 'build' {
+  return 'build';
+}
+
+// Genie scaffolds deterministically: the scaffold is a build-stage
+// deliverable, not something the agent should improvise. The repository's
+// own README survives the copy; everything else the scaffold ships wins,
+// its .gitignore included, so node_modules never reaches the commit.
+async function scaffoldWebjs(task: Task, machineId: string, branch: string, defaultBranch: string): Promise<void> {
+  await recordEvent(task.id, 'log', 'Empty repository: scaffolding a WebJs app (sqlite, node) at the root');
+  const cmd = [
+    `cd /home/pilot && rm -rf scaffold && ${SCAFFOLD_CMD}`,
+    `rm -rf scaffold/.git && ([ ! -f ${APP_DIR}/README.md ] || rm -f scaffold/README.md) && cp -a scaffold/. ${APP_DIR}/ && rm -rf scaffold`,
+    `cd ${APP_DIR} && npm install --no-audit --no-fund && npm run gallery:clear`,
+    `git checkout ${shellQuote(defaultBranch)} && (git checkout -b ${shellQuote(branch)} || git checkout ${shellQuote(branch)})`,
+    `git add -A && git commit -m "Scaffold a webjs app"`,
+  ].join(' && ');
+  const r = await deps.execLong(machineId, cmd, { cwd: APP_DIR, timeoutMs: 900_000 });
+  if (r.exitCode !== 0) throw new Error(`Scaffolding failed: ${(r.stderr.trim() || r.stdout.trim()).slice(-500)}`);
+  await recordEvent(task.id, 'log', `Scaffold committed on ${branch}`);
+}
+
+// Stage 3, in_progress to ready_for_review: one long run implements the
+// plan on the task branch, commits per unit, pushes and opens the PR. Genie
+// then resolves the PR itself with gh instead of parsing the agent's output,
+// opens it when the run ended before that step, and waits for the preview.
+// A re-claim reuses the branch and never opens a second PR: an open one is
+// looked up before Claude runs at all.
+export async function build(task: Task, project: Project): Promise<TaskStatus> {
+  const machineId = requireMachine(task);
+  const branch = task.branch ?? branchFor(task);
+  if (!task.branch) await patchTask(task.id, { branch });
+  let pr = task.prNumber && task.prUrl ? { number: task.prNumber, url: task.prUrl } : await findOpenPr(machineId, branch);
+  if (!pr) {
+    const text = await taskText(task, project);
+    const closesLine = task.githubIssueNumber ? `Closes #${task.githubIssueNumber}` : `Task: ${task.title}`;
+    const empty = await isEmptyRepo(machineId);
+    if (empty) await scaffoldWebjs(task, machineId, branch, project.defaultBranch);
+    const prompt = renderPrompt(buildOrRevise(task, deps), {
+      ...text, repo: project.githubRepo, appDir: APP_DIR, planPath: PLAN_PATH, plan: task.plan ?? '(no plan, work from the task text)',
+      branch, defaultBranch: project.defaultBranch, closesLine, stackNote: stackNote(empty, branch),
+    });
+    await recordEvent(task.id, 'log', `Building on ${branch}`);
+    await claude(machineId, { prompt, cwd: APP_DIR, timeoutMs: BUILD_TIMEOUT_MS, maxTurns: BUILD_MAX_TURNS, logPath: AGENT_LOG });
+    pr = (await findOpenPr(machineId, branch)) ?? (await openPrBackstop(task, project, machineId, branch, closesLine));
+  }
+  await patchTask(task.id, { prNumber: pr.number, prUrl: pr.url });
+  await recordEvent(task.id, 'github', `Pull request #${pr.number} ${pr.url}`);
+  const sha = await headSha(machineId, branch);
+  const previewUrl = await awaitPreview(task, project, machineId, pr.number, sha);
+  await patchTask(task.id, { previewUrl });
+  return 'ready_for_review';
+}
+
+// The pushed head, so the preview poll only accepts a preview of this
+// round's commit (a revise round in #5 would otherwise see the old one).
+export async function headSha(machineId: string, branch: string): Promise<string> {
+  const r = await deps.execLong(machineId, `git rev-parse origin/${shellQuote(branch)}`, { cwd: APP_DIR, timeoutMs: 30_000 });
+  const sha = r.stdout.trim();
+  if (r.exitCode !== 0 || !sha) throw new Error(`Branch ${branch} is not on the remote.`);
+  return sha;
+}
+
+async function findOpenPr(machineId: string, branch: string): Promise<{ number: number; url: string } | null> {
+  const r = await deps.execLong(machineId, `gh pr list --head ${shellQuote(branch)} --state open --json number,url --limit 1`, { cwd: APP_DIR, env: ghEnv(), timeoutMs: 60_000 });
+  if (r.exitCode !== 0) return null;
+  try {
+    const list = JSON.parse(r.stdout || '[]') as { number: number; url: string }[];
+    return list[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// The agent ran out of turns or time before the PR step. Push what it
+// committed and open the PR ourselves; a PR with a thin body beats none.
+async function openPrBackstop(task: Task, project: Project, machineId: string, branch: string, closesLine: string): Promise<{ number: number; url: string }> {
+  const has = await deps.execLong(machineId, `git rev-parse --verify ${shellQuote(branch)}`, { cwd: APP_DIR, timeoutMs: 30_000 });
+  if (has.exitCode !== 0) throw new Error(`The build produced no branch ${branch}.`);
+  await deps.pushBranch(machineId, APP_DIR, branch);
+  const body = `${closesLine}\n\nOpened by Genie after the build run ended before its own PR step. Review the commits on ${branch}.`;
+  const r = await deps.execLong(machineId,
+    `printf '%s' ${shellQuote(body)} > ${PR_BODY_PATH} && gh pr create --base ${shellQuote(project.defaultBranch)} --head ${shellQuote(branch)} --title ${shellQuote(task.title.slice(0, 70))} --body-file ${PR_BODY_PATH}`,
+    { cwd: APP_DIR, env: ghEnv(), timeoutMs: 120_000 });
+  if (r.exitCode !== 0) throw new Error(`gh pr create failed: ${r.stderr.trim()}`);
+  const pr = await findOpenPr(machineId, branch);
+  if (!pr) throw new Error('The pull request was created but gh pr list cannot find it.');
+  await recordEvent(task.id, 'log', "Opened the pull request on the agent's behalf");
+  return pr;
+}
+
+async function awaitPreview(task: Task, project: Project, machineId: string, prNumber: number, sha: string): Promise<string> {
+  await recordEvent(task.id, 'log', `Waiting for the Pilots preview of ${sha.slice(0, 7)} on the pull request`);
+  const deadline = Date.now() + deps.timing.previewTimeoutMs;
+  do {
+    const url = await deps.findPreviewUrl(project, prNumber, { sha });
+    if (url) return url;
+    await sleep(deps.timing.previewPollMs);
+  } while (Date.now() < deadline);
+  return startAppFallback(task, machineId);
+}
+
+// The repo is not connected to Pilots, so nothing will ever comment. Serve
+// the branch from the task machine instead, and say so.
+async function startAppFallback(task: Task, machineId: string): Promise<string> {
+  const name = task.machineName;
+  if (!name) throw new Error('No preview appeared and the task has no machine name to fall back to.');
+  const minutes = Math.round(deps.timing.previewTimeoutMs / 60_000);
+  await recordEvent(task.id, 'log', `No Pilots preview after ${minutes} minutes. Connect the repo to Pilots (pilot repo connect) to get PR previews. Starting the app in the task machine instead.`);
+  const dir = appDirOf(task);
+  await deps.execLong(machineId,
+    `cd ${dir} && (npm install --no-audit --no-fund >/home/pilot/app.log 2>&1 || true) && setsid nohup sh -c 'PORT=${APP_PORT} npm run start 2>&1 || PORT=${APP_PORT} npm run dev 2>&1' >> /home/pilot/app.log 2>&1 < /dev/null &`,
+    { cwd: dir, timeoutMs: 600_000 });
+  const deadline = Date.now() + deps.timing.appStartTimeoutMs;
+  do {
+    const r = await deps.execLong(machineId,
+      `node -e "fetch('http://127.0.0.1:${APP_PORT}/').then(r=>process.exit(r.status<500?0:1),()=>process.exit(1))"`, { timeoutMs: 15_000 });
+    if (r.exitCode === 0) return deps.machineUrl(name);
+    await sleep(deps.timing.appPollMs);
+  } while (Date.now() < deadline);
+  throw new Error(`No Pilots preview appeared and the app did not start on port ${APP_PORT} in the task machine (see /home/pilot/app.log).`);
+}
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));

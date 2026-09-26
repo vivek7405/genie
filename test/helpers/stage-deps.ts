@@ -37,6 +37,9 @@ export interface FakeDeps {
   issueReads: number[];
   previews: { prNumber: number; sha: string }[];
   fileReads: string[];
+  // Every exec and Claude run in the order they happened: 'exec:<cmd>' or
+  // 'claude', for ordering assertions.
+  timeline: string[];
   onCommand(match: string | RegExp, answer: ExecAnswer | ExecAnswer[] | ExecResponder): FakeDeps;
   onClaude(fn: (opts: RunClaudeOptions, nth: number) => ClaudeRun | Promise<ClaudeRun>): FakeDeps;
   onReadFile(fn: (path: string) => string | Promise<string>): FakeDeps;
@@ -70,7 +73,7 @@ export function fakeDeps(): FakeDeps {
   };
 
   const fake: FakeDeps = {
-    execs: [], claudeRuns: [], machines: [], clones: [], pushes: [], comments: [], issueReads: [], previews: [], fileReads: [],
+    execs: [], claudeRuns: [], machines: [], clones: [], pushes: [], comments: [], issueReads: [], previews: [], fileReads: [], timeline: [],
     deps: {
       async createTaskMachine(task) {
         const m = { id: `m-${++machineCount}`, name: `genie-stages-${task.id.slice(0, 8)}` };
@@ -79,6 +82,7 @@ export function fakeDeps(): FakeDeps {
       },
       async execLong(_machineId, cmd, opts) {
         fake.execs.push({ cmd, opts });
+        fake.timeline.push(`exec:${cmd}`);
         const out = answer(cmd);
         if (out instanceof Error) throw out;
         return { stdout: out.stdout ?? '', stderr: out.stderr ?? '', exitCode: out.exitCode ?? 0, timedOut: false, durationMs: 1 };
@@ -89,6 +93,7 @@ export function fakeDeps(): FakeDeps {
       },
       async runClaude(_machineId, opts) {
         fake.claudeRuns.push(opts);
+        fake.timeline.push('claude');
         return state.claude(opts, claudeCalls++);
       },
       async cloneRepo(machineId, _project, opts) {
