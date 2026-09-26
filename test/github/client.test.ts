@@ -79,3 +79,25 @@ test('with a transport installed no Authorization header is sent and no token is
     if (saved.GITHUB_TOKEN !== undefined) process.env.GITHUB_TOKEN = saved.GITHUB_TOKEN;
   }
 });
+
+test('a person-owned board refused to the App is retried with GH_TOKEN only when it is that person\x27s own', async () => {
+  const saved = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = 'ghp_own';
+  let boardCalls = 0;
+  fake.on('GET', 'user', () => ({ login: 'Octo' }));
+  fake.onGraphql('projectsV2', () => (++boardCalls === 1
+    ? jsonResponse({ data: null, errors: [{ type: 'FORBIDDEN', message: 'Resource not accessible by integration' }] })
+    : { repositoryOwner: { projectsV2: { nodes: [] } } }));
+  try {
+    const { viaUser } = await import('#modules/github/client.server.ts');
+    const data = await ghGraphql<{ repositoryOwner: unknown }>('query { repositoryOwner { projectsV2 } }', {}, { auth: viaUser({ accessToken: 'gho_user', login: 'octo' }) });
+    assert.ok(data.repositoryOwner, 'the retry with the deployment token answered');
+    assert.equal(boardCalls, 2);
+    boardCalls = 0;
+    const err = await ghGraphql('query { repositoryOwner { projectsV2 } }', {}, { auth: viaUser({ accessToken: 'gho_other', login: 'someone-else' }) }).catch((e: unknown) => e);
+    assert.ok(err instanceof GithubError, 'another person gets the refusal, never the deployment token');
+    assert.equal(boardCalls, 1);
+  } finally {
+    if (saved === undefined) delete process.env.GH_TOKEN; else process.env.GH_TOKEN = saved;
+  }
+});
