@@ -103,13 +103,13 @@ test('with no installation the page offers to install the App', async () => {
   assert.doesNotMatch(html, /__webjs_action/);
 });
 
-test('with an installation the page lists its repositories in a plain GET form, grouped by account', async () => {
+test('with an installation the page lists its repositories in a plain GET form, as a searchable datalist', async () => {
   const { html } = await page();
   assert.match(html, /<form method="get" action="\/dashboard\/projects\/new"/);
-  assert.match(html, /<select id="repo" name="repo" required/);
-  assert.match(html, /<optgroup label="acme">/);
-  assert.match(html, /<option value="acme\/shop" ?>acme\/shop \(private\)<\/option>/);
-  assert.match(html, /<option value="acme\/docs" ?>acme\/docs<\/option>/);
+  assert.match(html, /<input id="repo" name="repo" list="repo-list" required/, 'a text input that filters as you type');
+  assert.match(html, /<datalist id="repo-list">/);
+  assert.match(html, /<option value="acme\/shop">acme \(private\)<\/option>/);
+  assert.match(html, /<option value="acme\/docs">acme<\/option>/);
   assert.doesNotMatch(html, /__webjs_action/, 'no bound form until a repository is picked');
   assert.equal(fake.calls.at(-1)!.headers.get('authorization'), 'Bearer gho_fake_octo', 'read as the user');
 });
@@ -117,7 +117,7 @@ test('with an installation the page lists its repositories in a plain GET form, 
 test('a picked repository shows the boards under its owner, linked first, with a create option and the bound form', async () => {
   const { html } = await page(`${PAGE}?repo=acme/shop&installation_id=77`);
   assert.match(html, /Genie is installed on <strong>acme<\/strong>/);
-  assert.match(html, /<option value="acme\/shop" selected(="")?>/);
+  assert.match(html, /<input id="repo" name="repo" list="repo-list" required[^>]*value="acme\/shop"/);
   assert.match(html, /name="__webjs_action"/);
   assert.match(html, /<input type="hidden" name="githubRepo" value="acme\/shop">/);
   assert.match(html, /<input type="hidden" name="installationId" value="77">/);
