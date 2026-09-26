@@ -33,7 +33,7 @@ test('connect a project, add a task, see it in Todo, open its card', async () =>
   const board = await testRequest(app.handle, boardPath!);
   assert.equal(board.status, 200);
   const boardHtml = await board.text();
-  assert.match(boardHtml, /Ready for review/);
+  assert.match(boardHtml, /Review/);
   assert.match(boardHtml, /<webjs-frame id="board"/);
 
   // submitForm posts only the fields it is given (plus the action identity), so

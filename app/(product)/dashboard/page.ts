@@ -31,7 +31,7 @@ export default async function Home() {
                 </h2>
                 <p class="m-0 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-meta text-muted-foreground">
                   ${liveDot(busy > 0, busy > 0 ? 'genie is working' : 'idle')}
-                  ${total === 0 ? 'no tasks yet' : html`${counts.ready_for_review > 0 ? html`<span class="text-foreground">${counts.ready_for_review} ${labelOf('ready_for_review').toLowerCase()}</span>` : ''}
+                  ${total === 0 ? 'no tasks yet' : html`${counts.ready_for_review > 0 ? html`<span class="text-foreground">${counts.ready_for_review} in review</span>` : ''}
                     ${busy > 0 ? html`<span>${busy} in flight</span>` : ''}
                     <span>${counts.todo} todo</span><span>${counts.done} done</span>`}
                 </p>

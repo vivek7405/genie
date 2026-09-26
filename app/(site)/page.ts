@@ -42,14 +42,15 @@ function heroFeed() {
     ['09:43:41', 'Planning to In progress', 'status'],
     ['09:52:08', 'Branch genie/42-about-page pushed, 3 commits', 'log'],
     ['09:52:20', 'Pull request #43 opened', 'log'],
+    ['09:53:47', 'Self-review: 2 findings fixed, 1 comment left', 'log'],
     ['09:54:31', 'Preview ready at pr-43-shop.pilotrun.app', 'log'],
-    ['09:54:32', 'In progress to Ready for review', 'glow'],
+    ['09:54:32', 'In progress to Review', 'glow'],
   ];
   return html`
     <div class=${cn(cardClass(), 'overflow-hidden')}>
       <div class="flex items-center gap-3 border-b border-border px-4 py-3">
         <span class="min-w-0 truncate text-body font-semibold">Add a /about page with the team</span>
-        <span class=${cn(badgeClass(), VOICE, 'ml-auto shrink-0')}>Ready for review</span>
+        <span class=${cn(badgeClass(), VOICE, 'ml-auto shrink-0')}>Review</span>
       </div>
       <ol class="m-0 grid list-none gap-1.5 p-4 font-mono text-meta">
         ${lines.map(([t, m, k]) => html`
@@ -71,14 +72,14 @@ const STEPS = [
   { n: '01', owner: 'you', title: 'Write the task', text: 'In genie, or as a card on your GitHub project board with the genie label. A title and a brief, the way you would hand it to a colleague.' },
   { n: '02', owner: 'genie', title: 'Plan', text: 'A short, timeboxed run reads the brief and the repository and writes a plan: the files to touch, the steps, the checks. It is posted on the issue before any code.' },
   { n: '03', owner: 'genie', title: 'Build', text: 'On a branch, in a sandbox of its own. The agent follows the repository’s conventions, runs its checks and tests, commits per logical unit and opens the pull request.' },
-  { n: '04', owner: 'you', title: 'Review', text: 'The card arrives in Ready for review with the PR and a live preview URL. Approve to merge, or send it back with a note and it revises on the same branch.' },
+  { n: '04', owner: 'you', title: 'Review', text: 'The card arrives in Review with the PR and a live preview URL. Approve to merge, or request changes on the PR and it revises on the same branch.' },
 ];
 
 const COLUMNS = [
   { label: 'Todo', owner: 'you' },
-  { label: 'Planning', owner: 'genie' },
+  { label: 'Plan', owner: 'genie' },
   { label: 'In progress', owner: 'genie' },
-  { label: 'Ready for review', owner: 'genie' },
+  { label: 'Review', owner: 'genie' },
   { label: 'Done', owner: 'you' },
 ];
 
@@ -128,7 +129,7 @@ export default function Home() {
             </div>
           `)}
         </div>
-        <p class=${cn(PROSE, 'mt-6 text-meta')}>Use the GitHub project board if you already live there: cards with the genie label are picked up from Todo, every move is mirrored back, and moving a card to Done or back to In progress is the same verdict as the buttons.</p>`,
+        <p class=${cn(PROSE, 'mt-6 text-meta')}>Use the GitHub project board if you already live there: cards with the genie label are picked up from Todo, every move is mirrored back, and moving a card to Done or back to In progress is the same verdict as the buttons. A PR review that requests changes is too.</p>`,
     })}
 
     ${section({

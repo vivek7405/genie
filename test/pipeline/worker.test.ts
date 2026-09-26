@@ -1,5 +1,5 @@
 // The worker with the M1 stub stage: one tick claims a Todo task and the stub
-// walks it to Ready for review. Human verdicts then move it on. Runs against
+// walks it to Review. Human verdicts then move it on. Runs against
 // its own migrated temp database (test/helpers/db.ts).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

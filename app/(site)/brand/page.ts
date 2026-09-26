@@ -212,7 +212,7 @@ export default function BrandPage() {
           <div class=${cn(cardClass(), 'grid gap-4 p-5')}>
             <span class=${fieldLabelClass()}>State</span>
             <div class="flex flex-wrap items-center gap-3">
-              <span class=${cn(badgeClass(), fieldLabelClass(), 'text-primary-foreground')}>Ready for review</span>
+              <span class=${cn(badgeClass(), fieldLabelClass(), 'text-primary-foreground')}>Review</span>
               <span class=${cn(badgeClass({ variant: 'secondary' }), fieldLabelClass(), 'text-foreground')}>In progress</span>
               <span class=${cn(badgeClass({ variant: 'outline' }), fieldLabelClass(), 'text-foreground')}>Todo</span>
               <span class="inline-flex items-center gap-1.5 font-mono text-label uppercase tracking-[0.12em] text-muted-foreground">${liveDot(true)} live</span>
@@ -226,7 +226,7 @@ export default function BrandPage() {
           <div class=${cn(cardClass(), 'grid gap-4 p-5')}>
             <span class=${fieldLabelClass()}>Ledger</span>
             <ul class=${ledgerClass()}>
-              <li class=${cn(ledgerRowClass(), 'sm:grid-cols-[1fr_max-content]')}><span class="text-body font-semibold">shop</span><span class="text-meta text-muted-foreground">2 ready for review</span></li>
+              <li class=${cn(ledgerRowClass(), 'sm:grid-cols-[1fr_max-content]')}><span class="text-body font-semibold">shop</span><span class="text-meta text-muted-foreground">2 in review</span></li>
               <li class=${cn(ledgerRowClass(), 'sm:grid-cols-[1fr_max-content]')}><span class="text-body font-semibold">docs</span><span class="text-meta text-muted-foreground">no tasks yet</span></li>
             </ul>
             <p class="m-0 text-meta text-muted-foreground">A list of things is a ledger, not a grid of cards. A card promises a picture; a row has a name, a state and a time.</p>
