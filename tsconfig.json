@@ -28,6 +28,7 @@
     "modules/**/*",
     "lib/**/*",
     "test/**/*",
+    "scripts/**/*.ts",
     "middleware.js",
     "middleware.ts",
     ".webjs/routes.d.ts"
