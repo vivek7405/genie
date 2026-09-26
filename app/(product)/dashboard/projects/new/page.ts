@@ -77,14 +77,18 @@ function picker(o: Extract<ConnectOptions, { mode: 'pick' }>, errors: Record<str
         label: 'Repository',
         hint: html`The repositories Genie is installed on. Missing one? <a href=${o.installUrl} rel="noopener">Grant it on GitHub</a>.`,
         error: o.unknownRepo ? `${o.unknownRepo} is not one Genie was granted.` : errors.githubRepo,
-        control: select({ id: 'repo', name: 'repo', required: true }, html`
-          ${o.repo ? '' : html`<option value="" disabled selected>Choose a repository</option>`}
-          ${o.installations.map((i) => html`
-            <optgroup label=${i.account}>
-              ${i.repos.map((r) => html`<option value=${r.fullName} ?selected=${o.repo?.fullName === r.fullName}>${r.fullName}${r.private ? ' (private)' : ''}</option>`)}
-            </optgroup>
-          `)}
-        `),
+        // A text input over a datalist rather than a select: an account with
+        // hundreds of repositories needs typing to filter, and a datalist
+        // filters natively with no client code. The server still refuses a
+        // name Genie was not granted (o.unknownRepo), so free text is safe.
+        control: html`
+          <input id="repo" name="repo" list="repo-list" required autocomplete="off" spellcheck="false"
+            placeholder="Type to search, for example owner/name"
+            value=${o.repo?.fullName ?? values.repo ?? ''} class=${cn(inputClass(), 'w-full')} />
+          <datalist id="repo-list">
+            ${o.installations.flatMap((i) => i.repos.map((r) => html`<option value=${r.fullName}>${i.account}${r.private ? ' (private)' : ''}</option>`))}
+          </datalist>
+        `,
       })}
       <div><button type="submit" class=${buttonClass({ variant: o.repo ? 'outline' : 'default' })}>${o.repo ? 'Change repository' : 'Choose'}</button></div>
     </form>
