@@ -11,7 +11,7 @@ export default function PitchDeck() {
     <style>
       html { scroll-snap-type: y proximity; }
     </style>
-    <div class="grid gap-10">
+    <div class="mx-auto grid max-w-6xl gap-10 px-4 py-8 sm:px-6">
       ${SLIDES.map((slide, i) => html`
         <section id="slide-${i + 1}" class="grid min-h-[calc(100dvh-var(--header-h)-4rem)] snap-start content-center gap-6 scroll-mt-[calc(var(--header-h)+2rem)]" aria-label=${slide.title}>
           <p class="m-0 font-mono text-xs uppercase tracking-[0.2em] text-primary">${slide.kicker}</p>
