@@ -325,7 +325,20 @@ test('the fallback serves the branch from the task machine when no preview appea
   assert.ok(start.startsWith(`cd ${APP_DIR} && `));
   assert.ok(start.includes('PORT=8080 npm run start'));
   assert.equal(fake.commands('127.0.0.1:8080').length, 2);
-  assert.ok((await messages(task.id, 'log')).some((m) => m.includes('pilot repo connect')));
+  assert.ok((await messages(task.id, 'log')).some((m) => m.includes('No Pilots preview after')));
+});
+
+test('a repo nobody connected to Pilots gets its preview from the task machine without waiting', async () => {
+  fake.onRepoConnected(false);
+  fake.onCommand('127.0.0.1:8080', { exitCode: 0 });
+  const task = await inProgress();
+  assert.equal(await runStage(task), 'ready_for_review');
+  assert.equal((await reload(task.id)).previewUrl, 'https://genie-stages-m1.pilotrun.app');
+  assert.equal(fake.previews.length, 0, 'the pull request is never polled for a preview');
+  assert.equal(fake.commands('setsid nohup').length, 1);
+  const logs = await messages(task.id, 'log');
+  assert.ok(logs.some((m) => m.includes('Starting a live preview')));
+  assert.ok(!logs.some((m) => m.includes('Pilots')), 'the user is never told about Pilots');
 });
 
 test('the fallback fails when the app never answers on port 8080', async () => {

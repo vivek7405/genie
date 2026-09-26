@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import type { Service } from '@pilots/sdk';
 
 await import('../helpers/db.ts');
-const { findProductionUrl } = await import('#modules/pipeline/production.server.ts');
+const { findProductionUrl, isRepoConnected } = await import('#modules/pipeline/production.server.ts');
 
 const project = { githubRepo: 'harness/prod', defaultBranch: 'main' };
 
@@ -48,4 +48,11 @@ test('returns null without a url, with an empty list, and with no PILOT_API_KEY 
   } finally {
     if (had !== undefined) process.env.PILOT_API_KEY = had;
   }
+});
+
+test('isRepoConnected is true for any service built from the repo, whatever its branch or autodeploy', async () => {
+  const services = [service({ autodeploy: false, branch: 'staging' })];
+  assert.equal(await isRepoConnected(project, async () => services), true);
+  assert.equal(await isRepoConnected({ githubRepo: 'harness/other' }, async () => services), false);
+  assert.equal(await isRepoConnected(project, async () => []), false);
 });

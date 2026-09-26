@@ -28,6 +28,7 @@ import type { Project, Task } from '#db/schema.server.ts';
 import type { TaskStatus } from '#modules/tasks/types.ts';
 import { commentMarker, commentOnIssue, readIssue } from '#modules/github/issues.server.ts';
 import { findPreviewUrl, listReviewComments, type ReviewComment } from '#modules/github/pr.server.ts';
+import { isRepoConnected } from './production.server.ts';
 import { repoToken } from '#modules/github/app.server.ts';
 import { createTaskMachine, execLong, readFile, shellQuote, type ExecOptions, type ExecResult } from './pilots.server.ts';
 import { runClaude, type ClaudeRun, type RunClaudeOptions } from './claude.server.ts';
@@ -81,6 +82,7 @@ export interface StageDeps {
   commentOnIssue: (project: Project, issueNumber: number, body: string) => Promise<unknown>;
   readIssue: (project: Project, issueNumber: number) => Promise<{ title: string; body: string }>;
   findPreviewUrl: (project: Project, prNumber: number, opts: { sha: string }) => Promise<string | null>;
+  repoConnected: (project: Project) => Promise<boolean>;
   listReviewComments: (project: Project, prNumber: number) => Promise<ReviewComment[]>;
   timing: StageTiming;
   // The public URL of a task machine, for the preview fallback.
@@ -88,7 +90,7 @@ export interface StageDeps {
 }
 
 const defaults: StageDeps = {
-  createTaskMachine, execLong, readFile, runClaude, cloneRepo, pushBranch, repoToken, commentOnIssue, readIssue, findPreviewUrl, listReviewComments,
+  createTaskMachine, execLong, readFile, runClaude, cloneRepo, pushBranch, repoToken, commentOnIssue, readIssue, findPreviewUrl, repoConnected: isRepoConnected, listReviewComments,
   timing: {
     logPollMs: 5_000,
     previewPollMs: 15_000,
@@ -480,6 +482,14 @@ async function openPrBackstop(task: Task, project: Project, machineId: string, b
 }
 
 async function awaitPreview(task: Task, project: Project, machineId: string, prNumber: number, sha: string): Promise<string> {
+  // Genie serves the preview itself. The Pilots GitHub App is a bonus for a
+  // repository its owner has connected to Pilots: then the preview is a real
+  // per-PR deploy, so it is worth waiting for. A repository nobody connected
+  // will never get one, and the user should not have to know Pilots exists.
+  if (!(await deps.repoConnected(project))) {
+    await recordEvent(task.id, 'log', `Starting a live preview of ${sha.slice(0, 7)} in the task machine`);
+    return startPreviewInMachine(task, machineId);
+  }
   await recordEvent(task.id, 'log', `Waiting for the Pilots preview of ${sha.slice(0, 7)} on the pull request`);
   const deadline = Date.now() + deps.timing.previewTimeoutMs;
   do {
@@ -487,16 +497,16 @@ async function awaitPreview(task: Task, project: Project, machineId: string, prN
     if (url) return url;
     await sleep(deps.timing.previewPollMs);
   } while (Date.now() < deadline);
-  return startAppFallback(task, machineId);
+  const minutes = Math.round(deps.timing.previewTimeoutMs / 60_000);
+  await recordEvent(task.id, 'log', `No Pilots preview after ${minutes} minutes. Starting a live preview in the task machine instead.`);
+  return startPreviewInMachine(task, machineId);
 }
 
-// The repo is not connected to Pilots, so nothing will ever comment. Serve
-// the branch from the task machine instead, and say so.
-async function startAppFallback(task: Task, machineId: string): Promise<string> {
+// Serve the branch from the task machine: install, start, and hand back the
+// machine's own URL once the app answers on its port.
+async function startPreviewInMachine(task: Task, machineId: string): Promise<string> {
   const name = task.machineName;
-  if (!name) throw new Error('No preview appeared and the task has no machine name to fall back to.');
-  const minutes = Math.round(deps.timing.previewTimeoutMs / 60_000);
-  await recordEvent(task.id, 'log', `No Pilots preview after ${minutes} minutes. Connect the repo to Pilots (pilot repo connect) to get PR previews. Starting the app in the task machine instead.`);
+  if (!name) throw new Error('The task has no machine name to serve the preview from.');
   const dir = appDirOf(task);
   await deps.execLong(machineId,
     `cd ${dir} && (npm install --no-audit --no-fund >/home/pilot/app.log 2>&1 || true) && setsid nohup sh -c 'PORT=${APP_PORT} npm run start 2>&1 || PORT=${APP_PORT} npm run dev 2>&1' >> /home/pilot/app.log 2>&1 < /dev/null &`,
@@ -508,7 +518,7 @@ async function startAppFallback(task: Task, machineId: string): Promise<string> 
     if (r.exitCode === 0) return deps.machineUrl(name);
     await sleep(deps.timing.appPollMs);
   } while (Date.now() < deadline);
-  throw new Error(`No Pilots preview appeared and the app did not start on port ${APP_PORT} in the task machine (see /home/pilot/app.log).`);
+  throw new Error(`The app did not start on port ${APP_PORT} in the task machine (see /home/pilot/app.log).`);
 }
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));

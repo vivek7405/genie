@@ -26,3 +26,14 @@ export async function findProductionUrl(
   if (!match) return null;
   return match.custom_domain ? `https://${match.custom_domain}` : match.url ?? null;
 }
+
+// Whether any Pilots service is built from this repository at all. When none
+// is, the Pilots GitHub App will never comment a preview on a pull request,
+// so the pipeline serves the preview itself instead of waiting for one.
+export async function isRepoConnected(
+  project: Pick<Project, 'githubRepo'>,
+  listServices: ListServices = defaultListServices,
+): Promise<boolean> {
+  const services = await listServices();
+  return services.some((s) => s.repo === project.githubRepo);
+}
