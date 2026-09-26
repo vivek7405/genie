@@ -75,6 +75,7 @@ export const SLIDES: readonly Slide[] = [
     title: 'From one task at a time to a team’s backlog',
     points: [
       'Review feedback loop: PR review comments become revise runs on the same branch.',
+      'Cancel and steer from the board: removing the genie label mid-run stops the agent and closes its PR; a comment redirects it. Today the label is a one-way opt-in at pick-up.',
       'Parallel tasks with per-repo locks, cost and time budgets, and rate-limit backoff on the subscription window.',
       'Agent-written tests as a merge gate, and a second agent that reviews before a human does.',
       'Monorepos and non-webjs stacks (pilots already detects Next, Rails, Django, Go), then a hosted genie.',
