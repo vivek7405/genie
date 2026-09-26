@@ -101,3 +101,29 @@ test('a person-owned board refused to the App is retried with GH_TOKEN only when
     if (saved === undefined) delete process.env.GH_TOKEN; else process.env.GH_TOKEN = saved;
   }
 });
+
+test('a board refused to an installation is retried with GH_TOKEN only when the App sits on that same login', async () => {
+  const saved = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = 'ghp_own';
+  let boardCalls = 0;
+  fake.on('GET', 'user', () => ({ login: 'octo' }));
+  fake.on('GET', 'app/installations/77', () => ({ account: { login: 'Octo' } }));
+  fake.on('GET', 'app/installations/78', () => ({ account: { login: 'someone-else' } }));
+  fake.onGraphql('projectV2(number: 12)', () => (++boardCalls === 1
+    ? jsonResponse({ data: null, errors: [{ type: 'NOT_FOUND', message: 'Could not resolve to a ProjectV2 with the number 12.' }] })
+    : { user: { projectV2: { id: 'PVT_1' } } }));
+  try {
+    const { viaInstallation } = await import('#modules/github/client.server.ts');
+    const data = await ghGraphql<{ user: { projectV2: { id: string } } }>('query { user { projectV2(number: 12) { id } } }', {}, { auth: viaInstallation({ installationId: 77 }) });
+    assert.equal(data.user.projectV2.id, 'PVT_1', 'the retry with the deployment token answered');
+    assert.equal(boardCalls, 2);
+    assert.equal(fake.hits('app/installations/77').length, 1);
+    boardCalls = 0;
+    const err = await ghGraphql('query { user { projectV2(number: 12) { id } } }', {}, { auth: viaInstallation({ installationId: 78 }) }).catch((e: unknown) => e);
+    assert.ok(err instanceof GithubError, 'an installation on another login gets the refusal, never the deployment token');
+    assert.equal(boardCalls, 1);
+    assert.match(err.message, /Could not resolve to a ProjectV2/);
+  } finally {
+    if (saved === undefined) delete process.env.GH_TOKEN; else process.env.GH_TOKEN = saved;
+  }
+});
