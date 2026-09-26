@@ -21,7 +21,7 @@ test('/ is the marketing home: the loop, the sandbox, the stack, and a way into 
   assert.doesNotMatch(mainNav, /href="\/brand"/, 'and does not carry Brand');
   const footer = body.slice(body.indexOf('<footer'));
   assert.match(footer, /href="\/pitch-deck"/, 'the deck is linked from the footer');
-  assert.doesNotMatch(body.slice(0, body.indexOf('<footer')), /Pitch deck/, 'and only from the footer');
+  assert.doesNotMatch(body.slice(0, body.indexOf('<footer')), /Pitch Deck/, 'and only from the footer');
 });
 
 test('/dashboard is the product shell, with its own header', async () => {

@@ -26,7 +26,7 @@ test('/brand renders the mark and prints every printed swatch with its values', 
     assert.match(body, new RegExp(`sw-${s.token}`), `${s.token} painted`);
   }
   assert.match(body, /Writing the name/);
-  assert.doesNotMatch(body.slice(0, body.indexOf('<footer')), /Pitch deck/, 'the deck is linked from the footer, not the header');
+  assert.doesNotMatch(body.slice(0, body.indexOf('<footer')), /Pitch Deck/, 'the deck is linked from the footer, not the header');
 });
 
 test('the header carries the same mark as /brand', async () => {
