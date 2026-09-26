@@ -25,6 +25,7 @@
     "db:seed": "webjs db seed"
   },
   "dependencies": {
+    "@pilots/sdk": "^0.1.1",
     "@webjsdev/cli": "latest",
     "@webjsdev/core": "^0.7.54",
     "@webjsdev/server": "latest",
