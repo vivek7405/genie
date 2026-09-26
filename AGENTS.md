@@ -214,3 +214,14 @@ Keep server-only code (database drivers, secrets, `node:*` builtins) in
 Use the wired-up database (Drizzle) for every piece of data the app stores;
 the playbook above has the modeling step. Never store app data in a JSON file,
 an in-memory array, or localStorage.
+
+## genie specifics
+
+genie runs each task inside a pilots machine forked from a live `genie-base`
+checkpoint; `docs/pilots.md` explains the base machine, the naming scheme, the
+quota and the smoke script. The rule that every change to `modules/pipeline/`
+must keep: a credential (`CLAUDE_CODE_OAUTH_TOKEN`, `GH_TOKEN`, the git
+insteadOf value) reaches a machine only as the env of one buffered exec,
+never on the machine's disk, never on the exec stream, never in a log line,
+and anything recorded (`recordEvent`, `failStage`, a thrown message) goes
+through `redact()` first.
