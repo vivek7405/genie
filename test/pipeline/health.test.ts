@@ -4,8 +4,6 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 
-process.env.GENIE_STUB_STEP_MS = '0';
-
 const { db, appDir } = await import('../helpers/db.ts');
 const { projects, tasks } = await import('#db/schema.server.ts');
 const { createRequestHandler } = await import('@webjsdev/server');

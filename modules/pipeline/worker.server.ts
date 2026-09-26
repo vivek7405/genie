@@ -28,7 +28,7 @@ import type { Task, TaskStatus } from '#modules/tasks/types.ts';
 import { SYSTEM_TRANSITIONS, labelOf } from '#modules/tasks/utils/state-machine.ts';
 import { stopSync } from '#modules/github/sync.server.ts';
 import { recordEvent, notifyBoard } from './events.server.ts';
-import { runStage } from './stages.server.ts';
+import { RateLimitedError, runStage } from './stages.server.ts';
 import { transition, failStage, deferTask } from './transitions.server.ts';
 
 // How long a claim may hold each stage before it counts as a crashed run.
@@ -189,13 +189,11 @@ async function claim(concurrency: number): Promise<string[]> {
   return started;
 }
 
-// A rate limit surfaces from the stage as an error named RateLimitedError
-// with an optional `resetsAt`. Matched by name so the worker needs nothing
-// from the stage module beyond runStage.
+// A rate limit surfaces from the stage as a RateLimitedError carrying
+// Claude's reset instant when it reported one.
 function rateLimitOf(err: unknown): { resetsAt: Date | null } | null {
-  if (!(err instanceof Error) || err.name !== 'RateLimitedError') return null;
-  const resetsAt = (err as Error & { resetsAt?: unknown }).resetsAt;
-  return { resetsAt: resetsAt instanceof Date ? resetsAt : null };
+  if (!(err instanceof RateLimitedError)) return null;
+  return { resetsAt: err.resetsAt instanceof Date ? err.resetsAt : null };
 }
 
 async function run(task: Task): Promise<void> {
