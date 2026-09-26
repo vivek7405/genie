@@ -61,6 +61,13 @@ Open http://localhost:8080, sign in with GitHub, and connect a repository as
 `owner/name` with the number of its Project board. The board's Status field
 gains the Plan and Review options if it lacks them.
 
+Webhook: in the GitHub App's settings set Webhook to Active with the URL
+`https://genie.rent/api/github/webhook` (your own origin locally), a secret
+that goes in `GITHUB_APP_WEBHOOK_SECRET`, and subscribe to the Issues, Issue
+comment, Pull request and Pull request review events. A labelled issue, a
+`GENIE:` comment, a review or a merge then syncs within seconds; the 30 s
+poll stays as the fallback, and without the secret the endpoint answers 503.
+
 `npm run ci` runs every gate (conventions, health, types, audit, server,
 browser and end-to-end tests) and is the same command the GitHub workflow
 runs.
@@ -77,6 +84,10 @@ once, in the Genie directory, and the values never touch the repo:
 ```sh
 pilot secret set pilot_api_key
 pilot secret set claude_code_oauth_token
+pilot secret set github_app_id
+pilot secret set github_app_slug
+pilot secret set github_app_private_key
+pilot secret set github_app_webhook_secret
 pilot secret set github_token
 pilot secret set auth_secret
 pilot secret set auth_github_id
@@ -181,6 +192,7 @@ Every variable in `.env.example`.
 | `PILOT_API_URL` | Optional. Points at a self-hosted Pilots fleet. |
 | `CLAUDE_CODE_OAUTH_TOKEN` | Subscription token from `claude setup-token`, passed to Claude Code inside the machine. |
 | `GITHUB_APP_ID`, `GITHUB_APP_SLUG`, `GITHUB_APP_PRIVATE_KEY` | The GitHub App Genie acts as: installation tokens for every repository call and every task machine, the install link on the connect page. `AUTH_GITHUB_ID` and `AUTH_GITHUB_SECRET` are the same App's OAuth client. |
+| `GITHUB_APP_WEBHOOK_SECRET` | The App's webhook secret. Set, `/api/github/webhook` verifies each delivery and syncs the touched project at once; unset, the endpoint answers 503 and only the poll runs. |
 | `GH_TOKEN` | The fallback without an App: one operator token for every repo and board. Falls back to `gh auth token` when unset. Also serves a project connected before the App. |
 | `GENIE_WORKER` | `0` boots the UI without the pipeline worker. Tests do. |
 | `GENIE_CONCURRENCY` | How many tasks the worker drives at once. Keep 1 on a subscription token. |
@@ -201,10 +213,11 @@ Every variable in `.env.example`.
 | `REDIS_URL` | Scaffold default, unused by Genie. |
 
 The Pilots secrets `pilot_api_key`, `claude_code_oauth_token`,
-`github_app_id`, `github_app_slug`, `github_app_private_key`, `github_token`,
-`auth_secret`, `auth_github_id` and `auth_github_secret` map onto
-`PILOT_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, `GITHUB_APP_ID`, `GITHUB_APP_SLUG`,
-`GITHUB_APP_PRIVATE_KEY`, `GH_TOKEN`, `AUTH_SECRET`, `AUTH_GITHUB_ID` and
+`github_app_id`, `github_app_slug`, `github_app_private_key`,
+`github_app_webhook_secret`, `github_token`, `auth_secret`, `auth_github_id`
+and `auth_github_secret` map onto `PILOT_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`,
+`GITHUB_APP_ID`, `GITHUB_APP_SLUG`, `GITHUB_APP_PRIVATE_KEY`,
+`GITHUB_APP_WEBHOOK_SECRET`, `GH_TOKEN`, `AUTH_SECRET`, `AUTH_GITHUB_ID` and
 `AUTH_GITHUB_SECRET`.
 
 ## Operating Genie

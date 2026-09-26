@@ -31,6 +31,7 @@ services:
       GITHUB_APP_ID: secret://github_app_id
       GITHUB_APP_SLUG: secret://github_app_slug
       GITHUB_APP_PRIVATE_KEY: secret://github_app_private_key
+      GITHUB_APP_WEBHOOK_SECRET: secret://github_app_webhook_secret
       GH_TOKEN: secret://github_token
       AUTH_SECRET: secret://auth_secret
       AUTH_GITHUB_ID: secret://auth_github_id
