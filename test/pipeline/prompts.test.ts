@@ -62,7 +62,7 @@ test('renderPrompt does not rescan the inserted values', () => {
 test('the prompts carry no em-dash and no space-surrounded hyphen', () => {
   for (const name of ['plan', 'build'] as const) {
     const out = renderPrompt(name, BUILD_VARS);
-    assert.ok(!out.includes('—'), `${name}: no em-dash`);
+    assert.ok(!out.includes(String.fromCharCode(0x2014)), `${name}: no em-dash`);
     assert.ok(!/\S -{1,2} \S/.test(out.replace(/`[^`]*`/g, '')), `${name}: no hyphen used as a pause`);
   }
 });
