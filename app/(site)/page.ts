@@ -2,7 +2,8 @@ import { html } from '@webjsdev/core';
 import { badgeClass } from '#components/ui/badge.ts';
 import { buttonClass } from '#components/ui/button.ts';
 import { cardClass } from '#components/ui/card.ts';
-import { fieldLabelClass, liveDot, proseClass } from '#lib/utils/ui.ts';
+import { fieldLabelClass, liveDot } from '#lib/utils/ui.ts';
+import { section, siteHeadingClass, siteProseClass, siteVoiceClass } from '#lib/utils/site.ts';
 import { cn } from '#lib/utils/cn.ts';
 
 // The home page. One argument, carried by the section ledes:
@@ -14,22 +15,9 @@ import { cn } from '#lib/utils/cn.ts';
 // Every section stands alone: a reader arriving mid-page from a link must be
 // able to read a heading and its first sentence with nothing above it.
 
-const H2 = 'm-0 text-title font-bold tracking-tight';
-const PROSE = cn(proseClass(), 'text-body');
-const VOICE = 'font-mono text-label uppercase tracking-[0.12em]';
-
-function section(opts: { id: string; heading: string; layout?: 'stacked' | 'split'; lede?: unknown; body: unknown }) {
-  return html`
-    <section id=${opts.id} class="scroll-mt-24 border-t border-border py-16 md:py-24">
-      <div class="mx-auto max-w-6xl px-4 sm:px-6">
-        ${opts.layout === 'split' && opts.lede
-          ? html`<div class="grid gap-6 lg:grid-cols-2 lg:items-end lg:gap-14"><h2 class=${cn(H2, 'max-w-[20ch]')}>${opts.heading}</h2><p class=${cn(PROSE, 'm-0 lg:pb-1')}>${opts.lede}</p></div>`
-          : html`<h2 class=${H2}>${opts.heading}</h2>${opts.lede ? html`<p class=${cn(PROSE, 'mt-4 text-heading')}>${opts.lede}</p>` : ''}`}
-        <div class="mt-10">${opts.body}</div>
-      </div>
-    </section>
-  `;
-}
+const H2 = siteHeadingClass();
+const PROSE = siteProseClass();
+const VOICE = siteVoiceClass();
 
 /** The hero's artifact: one card's activity feed, as the dashboard prints it. */
 function heroFeed() {
