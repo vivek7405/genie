@@ -16,7 +16,9 @@ test('/ is the marketing home: the loop, the sandbox, the stack, and a way into 
   assert.match(body, /id="sandbox"/);
   assert.match(body, /id="stack"/);
   assert.match(body, /<footer[\s\S]*href="\/brand"/, 'brand is linked from the footer');
-  assert.doesNotMatch(body, /<nav[^>]*aria-label="Main"[\s\S]*?href="\/brand"[\s\S]*?<\/nav>/, 'and not from the header nav');
+  const mainNav = body.match(/<nav[^>]*aria-label="Main"[^>]*>([\s\S]*?)<\/nav>/)?.[1] ?? '';
+  assert.ok(mainNav.length > 0, 'the header nav renders');
+  assert.doesNotMatch(mainNav, /href="\/brand"/, 'and does not carry Brand');
   assert.doesNotMatch(body, /Pitch deck/);
 });
 
