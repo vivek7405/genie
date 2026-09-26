@@ -34,6 +34,8 @@ const BUILD_TIMEOUT_MS = Number(process.env.GENIE_BUILD_TIMEOUT_MS ?? 2_700_000)
 const BUILD_MAX_TURNS = 200;
 const SELF_REVIEW_TIMEOUT_MS = 600_000;
 const SELF_REVIEW_MAX_TURNS = 60;
+const LOG_LINE_MAX = 240;
+const LOG_POLL_MAX_BYTES = 65_536;
 const PR_BODY_PATH = '/home/pilot/pr-body.md';
 const APP_PORT = 8080;
 // A repository with none of these and fewer than EMPTY_REPO_MAX_FILES tracked
@@ -197,7 +199,8 @@ export async function plan(task: Task, project: Project): Promise<TaskStatus> {
     ...text, repo: project.githubRepo, appDir: APP_DIR, planPath: PLAN_PATH, maxTurns: String(PLAN_MAX_TURNS), stackNote: stackNote(empty, branch),
   });
   await recordEvent(task.id, 'log', 'Planning (timeboxed to 3 minutes)');
-  await claude(machineId, { prompt, cwd: APP_DIR, timeoutMs: PLAN_TIMEOUT_MS, maxTurns: PLAN_MAX_TURNS, logPath: AGENT_LOG });
+  await withLogFeed(task.id, machineId, () =>
+    claude(machineId, { prompt, cwd: APP_DIR, timeoutMs: PLAN_TIMEOUT_MS, maxTurns: PLAN_MAX_TURNS, logPath: AGENT_LOG }));
   const planText = (await deps.readFile(machineId, PLAN_PATH).catch(() => '')).trim();
   if (!planText) throw new Error('Planning produced no PLAN.md within the timebox.');
   await patchTask(task.id, { plan: planText });
@@ -285,7 +288,8 @@ export async function build(task: Task, project: Project): Promise<TaskStatus> {
       branch, defaultBranch: project.defaultBranch, closesLine, stackNote: stackNote(empty, branch),
     });
     await recordEvent(task.id, 'log', `Building on ${branch}`);
-    await claude(machineId, { prompt, cwd: APP_DIR, timeoutMs: BUILD_TIMEOUT_MS, maxTurns: BUILD_MAX_TURNS, logPath: AGENT_LOG });
+    await withLogFeed(task.id, machineId, () =>
+      claude(machineId, { prompt, cwd: APP_DIR, timeoutMs: BUILD_TIMEOUT_MS, maxTurns: BUILD_MAX_TURNS, logPath: AGENT_LOG }));
     pr = (await findOpenPr(machineId, branch)) ?? (await openPrBackstop(task, project, machineId, branch, closesLine));
   }
   await patchTask(task.id, { prNumber: pr.number, prUrl: pr.url });
@@ -336,9 +340,9 @@ async function selfReview(task: Task, machineId: string, branch: string, prNumbe
   await recordEvent(task.id, 'log', `Self-review of pull request #${prNumber} (timeboxed to 10 minutes)`);
   let run: ClaudeRun;
   try {
-    run = await deps.runClaude(machineId, {
+    run = await withLogFeed(task.id, machineId, () => deps.runClaude(machineId, {
       prompt: `/code-review --fix --comment ${prNumber}`, cwd: APP_DIR, timeoutMs: SELF_REVIEW_TIMEOUT_MS, maxTurns: SELF_REVIEW_MAX_TURNS, logPath: AGENT_LOG,
-    });
+    }));
   } catch (err) {
     await recordEvent(task.id, 'log', `Self-review skipped: ${err instanceof Error ? err.message : String(err)}`);
     return;
@@ -431,3 +435,64 @@ async function startAppFallback(task: Task, machineId: string): Promise<string> 
 }
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+// Runs `job` while tailing the agent's stream-json log into the activity
+// feed. The log is emptied first so a poll never replays the previous run,
+// then each poll reads only the bytes appended since the last one, keeps a
+// partial trailing line for the next poll, and never overlaps another: the
+// final flush in `finally` waits for an in-flight poll and then reads once
+// more. A poll that fails is a missed poll, not a failed stage.
+async function withLogFeed<T>(taskId: string, machineId: string, job: () => Promise<T>): Promise<T> {
+  let offset = 0;
+  let carry = '';
+  let inFlight: Promise<void> | null = null;
+  const read = async () => {
+    try {
+      const r = await deps.execLong(machineId, `tail -c +${offset + 1} ${AGENT_LOG} 2>/dev/null | head -c ${LOG_POLL_MAX_BYTES}`, { timeoutMs: 10_000 });
+      if (!r.stdout) return;
+      offset += Buffer.byteLength(r.stdout);
+      const lines = (carry + r.stdout).split('\n');
+      carry = lines.pop() ?? '';
+      for (const line of lines) for (const msg of feedLines(line)) await recordEvent(taskId, 'log', msg);
+    } catch {
+      // A missed poll is not a failed stage.
+    }
+  };
+  const poll = () => {
+    if (!inFlight) inFlight = read().finally(() => { inFlight = null; });
+    return inFlight;
+  };
+  await deps.execLong(machineId, `: > ${AGENT_LOG}`, { timeoutMs: 10_000 }).catch(() => null);
+  const timer = setInterval(() => { void poll(); }, deps.timing.logPollMs);
+  try {
+    return await job();
+  } finally {
+    clearInterval(timer);
+    if (inFlight) await inFlight;
+    await poll();
+  }
+}
+
+// One stream-json line to zero or more feed lines. Only what a human wants
+// to read: the agent's prose and the tool it reached for, each capped at
+// LOG_LINE_MAX characters.
+export function feedLines(line: string): string[] {
+  let ev: { type?: string; message?: { content?: { type: string; text?: string; name?: string; input?: Record<string, unknown> }[] } };
+  try {
+    ev = JSON.parse(line);
+  } catch {
+    return [];
+  }
+  if (!ev || ev.type !== 'assistant') return [];
+  const out: string[] = [];
+  for (const block of ev.message?.content ?? []) {
+    if (block.type === 'text' && block.text?.trim()) out.push(cap(block.text.trim().split('\n')[0]));
+    if (block.type === 'tool_use') {
+      const hint = String(block.input?.description ?? block.input?.command ?? block.input?.file_path ?? block.input?.pattern ?? '');
+      out.push(cap(`${block.name}${hint ? ': ' + hint.split('\n')[0] : ''}`));
+    }
+  }
+  return out;
+}
+
+const cap = (s: string) => (s.length > LOG_LINE_MAX ? s.slice(0, LOG_LINE_MAX - 1) + '\u2026' : s);
