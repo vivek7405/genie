@@ -22,7 +22,8 @@
     "db:migrate": "webjs db migrate",
     "db:push": "webjs db push",
     "db:studio": "webjs db studio",
-    "db:seed": "webjs db seed"
+    "db:seed": "webjs db seed",
+    "demo:reset": "node --env-file-if-exists=.env scripts/demo-reset.ts"
   },
   "dependencies": {
     "@webjsdev/cli": "latest",
