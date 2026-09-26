@@ -28,4 +28,10 @@ await migrate(db as Parameters<typeof migrate>[0], { migrationsFolder: join(appD
 const { setGithubTransport } = await import('#modules/github/client.server.ts');
 setGithubTransport(async () => new Response('offline in tests', { status: 503 }));
 
+/** A task's feed straight from the table. The RPC query scopes to a session;
+ * pipeline tests have none and read the rows directly. */
+export async function eventsOf(taskId: string) {
+  return db.query.taskEvents.findMany({ where: { taskId }, orderBy: { createdAt: 'asc' } });
+}
+
 export { db };

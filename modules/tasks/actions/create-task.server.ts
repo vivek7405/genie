@@ -5,9 +5,11 @@
 import { db } from '#db/connection.server.ts';
 import { tasks } from '#db/schema.server.ts';
 import type { ActionResult } from '@webjsdev/server';
+import { notYours, requireUser, signedOut } from '#modules/auth/session.server.ts';
 import { describeError } from '#modules/github/client.server.ts';
 import { publishTask } from '#modules/github/mirror.server.ts';
 import { recordEvent, notifyBoard } from '#modules/pipeline/events.server.ts';
+import { ownedProject } from '#modules/projects/ownership.server.ts';
 import type { Task } from '../types.ts';
 
 export interface CreateTaskInput {
@@ -29,8 +31,10 @@ export const validate = (input: unknown) => {
 };
 
 export async function createTask(input: CreateTaskInput): Promise<ActionResult<Task>> {
-  const project = await db.query.projects.findFirst({ where: { id: input.projectId } });
-  if (!project) return { success: false, error: 'Unknown project.', status: 404 };
+  const user = await requireUser();
+  if (!user) return signedOut();
+  const project = await ownedProject(input.projectId, user);
+  if (!project) return notYours('project');
   const [row] = await db.insert(tasks).values(input).returning();
   await recordEvent(row.id, 'status', 'Created in Todo');
   let task = row;

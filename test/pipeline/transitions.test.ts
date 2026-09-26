@@ -4,14 +4,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-const { db } = await import('../helpers/db.ts');
+const { db, eventsOf } = await import('../helpers/db.ts');
 const { projects, tasks } = await import('#db/schema.server.ts');
 const { deferTask, transition } = await import('#modules/pipeline/transitions.server.ts');
 const { retryTask } = await import('#modules/tasks/actions/retry-task.server.ts');
-const { listEvents } = await import('#modules/tasks/queries/list-events.server.ts');
 const { clock } = await import('#modules/tasks/utils/ui/clock.ts');
+const { signInAs, actingAs } = await import('../helpers/auth.ts');
 
-const [project] = await db.insert(projects).values({ name: 't', githubRepo: `harness/transitions-${Date.now()}` }).returning();
+const { user, cookies } = await signInAs('harness');
+const [project] = await db.insert(projects).values({ userId: user.id, name: 't', githubRepo: `harness/transitions-${Date.now()}` }).returning();
 
 async function load(id: string) {
   return (await db.query.tasks.findFirst({ where: { id } }))!;
@@ -28,7 +29,7 @@ test('deferTask sets the three columns, releases the claim and writes the feed l
   assert.equal(row.claimedAt, null);
   assert.equal(row.error, null, 'a deferral is not a failure');
   assert.equal(row.attempt, 2, 'the stage keeps its attempt number');
-  const line = (await listEvents(task.id)).find((e) => e.kind === 'log');
+  const line = (await eventsOf(task.id)).find((e) => e.kind === 'log');
   assert.equal(line?.message, `Waiting for Claude quota, retrying at ${clock(new Date(until))}`);
 
   await deferTask(task.id, until + 60_000, 'Waiting for Claude quota');
@@ -55,7 +56,7 @@ test('retryTask clears the error, the deferral and the attempt count', async () 
   }).returning();
   const form = new FormData();
   form.set('taskId', task.id);
-  const result = await retryTask(form);
+  const result = await actingAs(cookies, () => retryTask(form));
   assert.equal(result.success, true);
   const row = await load(task.id);
   assert.equal(row.error, null);

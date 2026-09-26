@@ -7,9 +7,10 @@ import { test, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { generateKeyPairSync } from 'node:crypto';
 import { appDir, db } from '../helpers/db.ts';
+import { signInAs } from '../helpers/auth.ts';
 import { fakeGithub } from '../helpers/github.ts';
 import { createRequestHandler } from '@webjsdev/server';
-import { testRequest, submitForm } from '@webjsdev/server/testing';
+import { testRequest, submitForm, withSessionCookie } from '@webjsdev/server/testing';
 import { projects, users } from '#db/schema.server.ts';
 import { forgetInstallationTokens, setGithubTransport } from '#modules/github/client.server.ts';
 
@@ -24,10 +25,13 @@ after(() => {
   delete process.env.GITHUB_APP_ID;
   delete process.env.GITHUB_APP_PRIVATE_KEY;
   delete process.env.GITHUB_APP_SLUG;
-  delete process.env.GENIE_DEV_USER_LOGIN;
 });
 
+// The session is a real signed cookie for octo, minted by the auth helper
+// from the row inserted here; the dashboard gate reads nothing else.
 await db.insert(users).values({ githubId: 2002, login: 'octo', accessToken: 'gho_fake_octo' });
+const { cookies } = await signInAs('octo');
+const me = withSessionCookie({}, cookies);
 
 // The scripted GitHub: one installation on acme with two repositories, two
 // boards under acme (one linked to acme/shop), and the mutations a board
@@ -42,7 +46,6 @@ beforeEach(() => {
   process.env.GITHUB_APP_ID = '4242';
   process.env.GITHUB_APP_PRIVATE_KEY = PEM;
   process.env.GITHUB_APP_SLUG = 'genie-dev';
-  process.env.GENIE_DEV_USER_LOGIN = 'octo';
   forgetInstallationTokens();
   fake.reset();
   fake.rest.clear();
@@ -70,8 +73,8 @@ beforeEach(() => {
   fake.onGraphql('linkProjectV2ToRepository', (v) => { linked.push({ projectId: String(v.projectId), repositoryId: String(v.repositoryId) }); return { linkProjectV2ToRepository: { repository: { id: 'R_docs' } } }; });
 });
 
-const page = async (path = PAGE) => {
-  const res = await testRequest(app.handle, path);
+const page = async (path = PAGE, init = me) => {
+  const res = await testRequest(app.handle, path, init);
   return { status: res.status, html: await res.text() };
 };
 
@@ -85,12 +88,10 @@ test('without an App the operator form renders: owner/name and a board number', 
   assert.equal(fake.calls.length, 0, 'no GitHub call');
 });
 
-test('signed out, the page asks for a sign-in and posts nothing', async () => {
-  delete process.env.GENIE_DEV_USER_LOGIN;
-  const { html } = await page();
-  assert.match(html, /Sign in with GitHub to connect a repository/);
-  assert.match(html, /href="\/login"/);
-  assert.doesNotMatch(html, /__webjs_action/);
+test('signed out, the gate sends the visitor to sign in before the page renders', async () => {
+  const res = await testRequest(app.handle, PAGE);
+  assert.equal(res.status, 302);
+  assert.equal(res.headers.get('location'), '/login?next=%2Fdashboard%2Fprojects%2Fnew');
   assert.equal(fake.calls.length, 0);
 });
 
@@ -136,7 +137,7 @@ test('a repository Genie was not granted is refused on the page', async () => {
 });
 
 test('connecting stores the owner, the installation and the board, resolved as the installation', async () => {
-  const res = await submitForm(app.handle, `${PAGE}?repo=acme/shop`, { githubRepo: 'acme/shop', installationId: '77', githubProjectNumber: '1', name: 'Shop' }, { match: 'githubProjectNumber' });
+  const res = await submitForm(app.handle, `${PAGE}?repo=acme/shop`, { githubRepo: 'acme/shop', installationId: '77', githubProjectNumber: '1', name: 'Shop' }, { match: 'githubProjectNumber', cookies });
   assert.equal(res.status, 303);
   const location = res.headers.get('location')!;
   assert.match(location, /^\/dashboard\/projects\//);
@@ -151,12 +152,12 @@ test('connecting stores the owner, the installation and the board, resolved as t
   assert.equal(row.syncError, null);
   assert.deepEqual(bearers, ['Bearer ghs_fake_77']);
 
-  const again = await submitForm(app.handle, `${PAGE}?repo=acme/shop`, { githubRepo: 'acme/shop', installationId: '77', githubProjectNumber: '3' }, { match: 'githubProjectNumber' });
+  const again = await submitForm(app.handle, `${PAGE}?repo=acme/shop`, { githubRepo: 'acme/shop', installationId: '77', githubProjectNumber: '3' }, { match: 'githubProjectNumber', cookies });
   assert.equal(again.headers.get('location'), location, 'connecting the same repository again lands on the existing project');
 });
 
 test('"Create a board for this repo" creates and links one as the user, then resolves it', async () => {
-  const res = await submitForm(app.handle, `${PAGE}?repo=acme/docs`, { githubRepo: 'acme/docs', installationId: '77', githubProjectNumber: 'new' }, { match: 'githubProjectNumber' });
+  const res = await submitForm(app.handle, `${PAGE}?repo=acme/docs`, { githubRepo: 'acme/docs', installationId: '77', githubProjectNumber: 'new' }, { match: 'githubProjectNumber', cookies });
   assert.equal(res.status, 303);
   const row = (await db.query.projects.findFirst({ where: { githubRepo: 'acme/docs' } }))!;
   assert.deepEqual(created, [{ title: 'docs', ownerId: 'O_acme' }]);
@@ -167,10 +168,10 @@ test('"Create a board for this repo" creates and links one as the user, then res
 });
 
 test('a repository outside the installation, or no installation, is a 422 that names the field', async () => {
-  const outside = await submitForm(app.handle, `${PAGE}?repo=acme/shop`, { githubRepo: 'acme/secret', installationId: '77' }, { match: 'githubProjectNumber' });
+  const outside = await submitForm(app.handle, `${PAGE}?repo=acme/shop`, { githubRepo: 'acme/secret', installationId: '77' }, { match: 'githubProjectNumber', cookies });
   assert.equal(outside.status, 422);
   assert.match(await outside.text(), /acme\/secret is not in that installation/);
-  const none = await submitForm(app.handle, `${PAGE}?repo=acme/shop`, { githubRepo: 'acme/shop' }, { match: 'githubProjectNumber' });
+  const none = await submitForm(app.handle, `${PAGE}?repo=acme/shop`, { githubRepo: 'acme/shop' }, { match: 'githubProjectNumber', cookies });
   assert.equal(none.status, 422);
   assert.match(await none.text(), /Pick a repository from one of your installations/);
   assert.equal(await db.query.projects.findFirst({ where: { githubRepo: 'acme/secret' } }), undefined);
@@ -181,7 +182,7 @@ test('a board that fails to resolve still lands the project with the error store
   fake.onGraphql('projectsV2(first: 50', () => ({ repositoryOwner: { projectsV2: { nodes: [] } } }));
   fake.onGraphql('{ ... on ProjectV2Owner { projectV2(number: $number)', () => ({ repositoryOwner: { projectV2: null } }));
   await db.delete(projects);
-  const res = await submitForm(app.handle, `${PAGE}?repo=acme/shop`, { githubRepo: 'acme/shop', installationId: '77', githubProjectNumber: '5' }, { match: 'githubProjectNumber' });
+  const res = await submitForm(app.handle, `${PAGE}?repo=acme/shop`, { githubRepo: 'acme/shop', installationId: '77', githubProjectNumber: '5' }, { match: 'githubProjectNumber', cookies });
   assert.equal(res.status, 303);
   const row = (await db.query.projects.findFirst({ where: { githubRepo: 'acme/shop' } }))!;
   assert.equal(row.githubProjectNumber, 5);

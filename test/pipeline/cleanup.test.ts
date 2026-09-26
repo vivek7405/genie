@@ -5,10 +5,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Machine } from '@pilots/sdk';
 
-const { db } = await import('../helpers/db.ts');
+const { db, eventsOf } = await import('../helpers/db.ts');
 const { projects, tasks } = await import('#db/schema.server.ts');
 const { planCleanup, runCleanup } = await import('#modules/pipeline/cleanup.server.ts');
-const { listEvents } = await import('#modules/tasks/queries/list-events.server.ts');
 import type { Task } from '#modules/tasks/types.ts';
 
 const DAY_MS = 24 * 60 * 60_000;
@@ -122,7 +121,7 @@ test('runCleanup destroys nothing on a dry run, and on --yes destroys, clears th
   const after = (await db.query.tasks.findFirst({ where: { id: done.id } }))!;
   assert.equal(after.machineId, null);
   assert.equal(after.machineName, null);
-  assert.ok((await listEvents(done.id)).some((e) => e.message === 'Machine genie-repo-rundone0 destroyed by cleanup (task done)'));
+  assert.ok((await eventsOf(done.id)).some((e) => e.message === 'Machine genie-repo-rundone0 destroyed by cleanup (task done)'));
   assert.equal((await db.query.tasks.findFirst({ where: { id: live.id } }))!.machineId, 'm-run-live', 'the live task keeps its machine');
   assert.match(lines.at(-1)!, /4 machine\(s\) seen, 2 kept, 2 destroyed, 18 of 20 quota slots free/);
 });

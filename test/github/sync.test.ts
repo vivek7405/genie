@@ -5,13 +5,12 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq } from 'drizzle-orm';
-import { db } from '../helpers/db.ts';
+import { db, eventsOf } from '../helpers/db.ts';
 import { fakeGithub, jsonResponse } from '../helpers/github.ts';
 import { projects, tasks } from '#db/schema.server.ts';
 import { setGithubTransport } from '#modules/github/client.server.ts';
 import { NO_COMMENT_FEEDBACK, NO_REVIEW_FEEDBACK, startSync, stopSync, syncAll, syncProject, syncStatus } from '#modules/github/sync.server.ts';
 import { STATUS_OPTION_NAMES } from '#modules/github/projects-v2.server.ts';
-import { listEvents } from '#modules/tasks/queries/list-events.server.ts';
 import type { TaskStatus } from '#modules/tasks/types.ts';
 
 const fake = fakeGithub();
@@ -121,7 +120,7 @@ test('import: a genie issue in Todo becomes a task, an unlabeled or in-flight is
   assert.equal(task.title, 'Add about');
   assert.equal(task.description, 'A page');
   assert.ok(task.syncedAt instanceof Date);
-  assert.ok((await listEvents(task.id)).some((e) => e.kind === 'github' && e.message.startsWith('Imported from issue #1 ')));
+  assert.ok((await eventsOf(task.id)).some((e) => e.kind === 'github' && e.message.startsWith('Imported from issue #1 ')));
   assert.equal((await syncProject(s.project)).imported, 0, 'a second tick imports nothing new');
   const after = await db.query.projects.findFirst({ where: { id: s.project.id } });
   assert.equal(after?.syncError, null);
@@ -139,7 +138,7 @@ test('approve on GitHub: a review task whose card is in Done ends done with the 
   const task = await s.task({ status: 'ready_for_review', githubIssueNumber: 5, githubItemId: 'ITEM_5' });
   assert.equal((await syncProject(s.project)).verdicts, 1);
   assert.equal((await s.reload(task.id)).status, 'done');
-  assert.ok((await listEvents(task.id)).some((e) => e.message === 'Approved on GitHub'));
+  assert.ok((await eventsOf(task.id)).some((e) => e.message === 'Approved on GitHub'));
   assert.deepEqual(s.posted(5), ['<!-- genie-done -->\nApproved.']);
 });
 
@@ -175,7 +174,7 @@ test('ownership: a planning card moved to Done is moved back, todo and unmapped 
   assert.equal(summary.verdicts, 0);
   assert.equal((await s.reload(planning.id)).status, 'planning');
   assert.deepEqual(s.moves(), ['plan-id']);
-  assert.ok((await listEvents(planning.id)).some((e) => /moved back: genie owns this stage/.test(e.message)));
+  assert.ok((await eventsOf(planning.id)).some((e) => /moved back: genie owns this stage/.test(e.message)));
   assert.equal(s.calls().filter((c) => c.method === 'POST' && c.path !== 'graphql').length, 0, 'no REST write');
 });
 
@@ -224,7 +223,7 @@ test('pr: a merged pull request approves the task without a second merge', async
   const task = await s.task({ status: 'ready_for_review', githubIssueNumber: 11, githubItemId: 'ITEM_11', prNumber: 4 });
   assert.equal((await syncProject(s.project)).verdicts, 1);
   assert.equal((await s.reload(task.id)).status, 'done');
-  assert.ok((await listEvents(task.id)).some((e) => e.message === `Merged on GitHub: https://github.com/${s.repo}/pull/4`));
+  assert.ok((await eventsOf(task.id)).some((e) => e.message === `Merged on GitHub: https://github.com/${s.repo}/pull/4`));
   assert.ok(!fake.calls.some((c) => c.method === 'PUT'), 'no merge call');
 });
 
@@ -249,7 +248,7 @@ test('pr: an approving review approves, and the newest signal wins', async () =>
   const task = await s.task({ status: 'ready_for_review', githubIssueNumber: 13, githubItemId: 'ITEM_13', prNumber: 4 });
   await syncProject(s.project);
   assert.equal((await s.reload(task.id)).status, 'done');
-  assert.ok((await listEvents(task.id)).some((e) => e.message === `Approved on GitHub: https://github.com/${s.repo}/r/2`));
+  assert.ok((await eventsOf(task.id)).some((e) => e.message === `Approved on GitHub: https://github.com/${s.repo}/r/2`));
 });
 
 test('pr: a COMMENTED review, a lone inline thread, an old review and a plain comment are not verdicts, and a quiet PR costs one request', async () => {
