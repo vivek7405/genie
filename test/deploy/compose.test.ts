@@ -50,7 +50,7 @@ test('one service, genie, built from the repo Dockerfile', () => {
   assert.deepEqual(services, ['  genie:'], 'exactly one service');
 });
 
-test('exactly six secret:// references: the two Pilots and Claude credentials, the GitHub App and the token fallback', () => {
+test('every credential is a secret:// reference, and nothing else is', () => {
   const refs = [...codeText.matchAll(/^\s+([A-Z_]+): secret:\/\/([a-z_]+)\s*$/gm)].map((m) => [m[1], m[2]]);
   assert.deepEqual(refs, [
     ['PILOT_API_KEY', 'pilot_api_key'],
@@ -59,13 +59,16 @@ test('exactly six secret:// references: the two Pilots and Claude credentials, t
     ['GITHUB_APP_SLUG', 'github_app_slug'],
     ['GITHUB_APP_PRIVATE_KEY', 'github_app_private_key'],
     ['GH_TOKEN', 'github_token'],
+    ['AUTH_SECRET', 'auth_secret'],
+    ['AUTH_GITHUB_ID', 'auth_github_id'],
+    ['AUTH_GITHUB_SECRET', 'auth_github_secret'],
   ]);
-  assert.equal((codeText.match(/secret:\/\//g) ?? []).length, 6);
+  assert.equal((codeText.match(/secret:\/\//g) ?? []).length, refs.length);
 });
 
 test('no environment line carries a literal token or key value', () => {
   for (const l of environmentLines()) {
-    if (/TOKEN|KEY|GITHUB_APP/.test(l)) assert.match(l, /: secret:\/\/[a-z_]+\s*$/, `pasted secret on: ${l.trim()}`);
+    if (/TOKEN|KEY|SECRET|AUTH_|GITHUB_APP/.test(l)) assert.match(l, /: secret:\/\/[a-z_]+\s*$/, `pasted secret on: ${l.trim()}`);
   }
 });
 

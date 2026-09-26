@@ -29,6 +29,9 @@ services:
       GITHUB_APP_SLUG: secret://github_app_slug
       GITHUB_APP_PRIVATE_KEY: secret://github_app_private_key
       GH_TOKEN: secret://github_token
+      AUTH_SECRET: secret://auth_secret
+      AUTH_GITHUB_ID: secret://auth_github_id
+      AUTH_GITHUB_SECRET: secret://auth_github_secret
     volumes:
       - genie-data:/data
     # The same probe as the Dockerfile HEALTHCHECK. With a compose file present
