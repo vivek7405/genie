@@ -47,6 +47,12 @@ export const tasks = table('tasks', {
   error: text(),
   attempt: integer().notNull().default(0),
   claimedAt: timestamp(),
+  // A Claude rate limit is a wait, not a failure: the worker skips the task
+  // until `deferredUntil`, the card shows `deferReason`, and `deferCount`
+  // (consecutive deferrals of the current stage) drives the backoff.
+  deferredUntil: timestamp(),
+  deferReason: text(),
+  deferCount: integer().notNull().default(0),
   syncedAt: timestamp(),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
