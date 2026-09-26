@@ -56,7 +56,9 @@ jobs:
       # it is absent). Install it so the e2e layer runs here rather than
       # skipping silently.
       - name: Install puppeteer-core
-        run: npm install --no-save puppeteer-core
+        # Pinned to the range package.json overrides, or npm 11 refuses the
+        # install with EOVERRIDE (a direct dependency may not contradict an override).
+        run: npm install --no-save puppeteer-core@^25.7.0
       - name: Resolve the Chromium binary path
         run: echo "CHROMIUM_PATH=$(node -e "console.log(require('playwright-core').chromium.executablePath())")" >> "$GITHUB_ENV"
       - name: Set up the database (generate + apply migrations)
