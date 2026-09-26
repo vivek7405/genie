@@ -7,6 +7,7 @@ import type { ActionResult } from '@webjsdev/server';
 import type { Task, TaskStatus } from '#modules/tasks/types.ts';
 import { canTransition, labelOf, type Actor } from '#modules/tasks/utils/state-machine.ts';
 import { recordEvent, notifyBoard } from './events.server.ts';
+import { redact } from './pilots.server.ts';
 
 export async function transition(
   taskId: string,
@@ -29,7 +30,7 @@ export async function transition(
 }
 
 export async function failStage(taskId: string, error: string): Promise<void> {
-  const [row] = await db.update(tasks).set({ error, claimedAt: null }).where(eq(tasks.id, taskId)).returning();
+  const [row] = await db.update(tasks).set({ error: redact(error), claimedAt: null }).where(eq(tasks.id, taskId)).returning();
   if (!row) return;
   await recordEvent(row.id, 'error', error);
   notifyBoard(row);
