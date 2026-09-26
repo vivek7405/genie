@@ -55,6 +55,8 @@ export interface FakeDeps {
   // The token the project resolves to (the default is none, as in a test
   // environment with no GH_TOKEN and no App).
   onRepoToken(fn: () => string | null | Promise<string | null>): FakeDeps;
+  // Whether a Pilots service is built from the repo (default true).
+  onRepoConnected(connected: boolean): FakeDeps;
   // The commands so far whose text includes `needle`.
   commands(needle: string | RegExp): string[];
 }
@@ -67,6 +69,8 @@ export function fakeDeps(): FakeDeps {
     preview: (() => PREVIEW_URL) as (prNumber: number, sha: string, nth: number) => string | null,
     reviewComments: (() => []) as (prNumber: number) => ReviewComment[] | Promise<ReviewComment[]>,
     repoToken: (() => null) as () => string | null | Promise<string | null>,
+    // The Pilots path by default: a connected repo waits for the App's preview.
+    repoConnected: true,
   };
   let claudeCalls = 0;
   let previewCalls = 0;
@@ -134,6 +138,9 @@ export function fakeDeps(): FakeDeps {
         fake.timeline.push('preview');
         return state.preview(prNumber, opts.sha, previewCalls++);
       },
+      async repoConnected() {
+        return state.repoConnected;
+      },
       async listReviewComments(_project, prNumber) {
         fake.threadReads.push(prNumber);
         return state.reviewComments(prNumber);
@@ -151,6 +158,10 @@ export function fakeDeps(): FakeDeps {
     },
     onReadFile(fn) {
       state.readFile = fn;
+      return fake;
+    },
+    onRepoConnected(connected) {
+      state.repoConnected = connected;
       return fake;
     },
     onPreview(fn) {
