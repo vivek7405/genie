@@ -212,9 +212,9 @@ export default function BrandPage() {
           <div class=${cn(cardClass(), 'grid gap-4 p-5')}>
             <span class=${fieldLabelClass()}>State</span>
             <div class="flex flex-wrap items-center gap-3">
-              <span class=${cn(badgeClass(), fieldLabelClass(), 'text-primary-foreground')}>Review</span>
-              <span class=${cn(badgeClass({ variant: 'secondary' }), fieldLabelClass(), 'text-foreground')}>In progress</span>
-              <span class=${cn(badgeClass({ variant: 'outline' }), fieldLabelClass(), 'text-foreground')}>Todo</span>
+              <span class=${badgeClass({ voice: true })}>Review</span>
+              <span class=${badgeClass({ variant: 'secondary', voice: true })}>In progress</span>
+              <span class=${badgeClass({ variant: 'outline', voice: true })}>Todo</span>
               <span class="inline-flex items-center gap-1.5 font-mono text-label uppercase tracking-[0.12em] text-muted-foreground">${liveDot(true)} live</span>
             </div>
             <p class="m-0 text-meta text-muted-foreground">A badge speaks in the label voice. The glow fills the one state that needs a person, and pulses where Genie is working.</p>

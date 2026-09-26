@@ -36,6 +36,16 @@ const VARIANTS = {
 
 export type BadgeVariant = keyof typeof VARIANTS;
 
-export function badgeClass(opts: { variant?: BadgeVariant } = {}): string {
-  return cn(BASE, VARIANTS[opts.variant ?? 'default']);
+/**
+ * `voice: true` sets the badge in the instrument-panel voice (small monospace
+ * uppercase) INSTEAD of the sans text-xs. It is an option here rather than a
+ * class appended at the call site because `cn()` cannot tell `text-label` (a
+ * font size) from `text-primary-foreground` (a colour) and drops whichever
+ * came first, which left the filled badge inheriting the page ink.
+ */
+export function badgeClass(opts: { variant?: BadgeVariant; voice?: boolean } = {}): string {
+  const base = opts.voice
+    ? BASE.replace('text-xs font-medium', 'font-mono text-label uppercase tracking-[0.12em]')
+    : BASE;
+  return cn(base, VARIANTS[opts.variant ?? 'default']);
 }
