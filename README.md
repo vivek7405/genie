@@ -52,12 +52,12 @@ Then:
 ```sh
 git clone git@github.com:vivek7405/genie.git
 cd genie
-cp .env.example .env      # fill PILOT_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, and GH_TOKEN or the GitHub App keys
+cp .env.example .env      # fill AUTH_SECRET, AUTH_GITHUB_*, PILOT_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, and GH_TOKEN or the GitHub App keys
 npm install
 npm run dev
 ```
 
-Open http://localhost:8080, go to the dashboard, and connect a repository as
+Open http://localhost:8080, sign in with GitHub, and connect a repository as
 `owner/name` with the number of its Project board. The board's Status field
 gains the Plan and Review options if it lacks them.
 
@@ -71,13 +71,16 @@ runs.
 of `compose.yaml`. It keeps one replica resident (the worker and the GitHub
 sync poll with nobody connected, so the replica must not suspend) and puts
 the SQLite file on the `genie-data` volume at `/data`, where it survives
-every redeploy. The three credentials are `secret://` references. Set them
+every redeploy. Every credential is a `secret://` reference. Set them
 once, in the Genie directory, and the values never touch the repo:
 
 ```sh
 pilot secret set pilot_api_key
 pilot secret set claude_code_oauth_token
 pilot secret set github_token
+pilot secret set auth_secret
+pilot secret set auth_github_id
+pilot secret set auth_github_secret
 pilot deploy
 pilot service info genie
 ```
@@ -168,8 +171,7 @@ gh pr close --delete-branch
 
 ## Environment variables
 
-Every variable in `.env.example`. The scaffold ones are inherited from
-create-webjs and Genie does not use them.
+Every variable in `.env.example`.
 
 | Variable | Meaning |
 | --- | --- |
@@ -193,12 +195,17 @@ create-webjs and Genie does not use them.
 | `GENIE_DRAIN_MS` | How long a SIGTERM waits for in-flight stages, 8 s by default. |
 | `GENIE_CLEANUP_DAYS` | Age after which the cleanup script destroys a failed task's machine. |
 | `GENIE_STUB_STEP_MS` | How long each stub stage pretends to work. Only while the pipeline is stubbed. |
-| `AUTH_SECRET`, `AUTH_*_ID`, `AUTH_*_SECRET`, `REDIS_URL` | Scaffold defaults, unused by Genie. |
+| `AUTH_SECRET` | Signs the session cookie. Required everywhere; the app refuses to boot without it. |
+| `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET` | The GitHub App's OAuth client id and secret. Sign in with GitHub is the only way in. |
+| `GENIE_DEV_USER_LOGIN` | The GitHub login `npm run db:seed` hands the demo project to, `vivek7405` by default. |
+| `REDIS_URL` | Scaffold default, unused by Genie. |
 
 The Pilots secrets `pilot_api_key`, `claude_code_oauth_token`,
-`github_app_id`, `github_app_slug`, `github_app_private_key` and
-`github_token` map onto `PILOT_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`,
-`GITHUB_APP_ID`, `GITHUB_APP_SLUG`, `GITHUB_APP_PRIVATE_KEY` and `GH_TOKEN`.
+`github_app_id`, `github_app_slug`, `github_app_private_key`, `github_token`,
+`auth_secret`, `auth_github_id` and `auth_github_secret` map onto
+`PILOT_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, `GITHUB_APP_ID`, `GITHUB_APP_SLUG`,
+`GITHUB_APP_PRIVATE_KEY`, `GH_TOKEN`, `AUTH_SECRET`, `AUTH_GITHUB_ID` and
+`AUTH_GITHUB_SECRET`.
 
 ## Operating Genie
 

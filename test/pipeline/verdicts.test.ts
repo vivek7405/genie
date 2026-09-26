@@ -5,10 +5,9 @@
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 
-const { db } = await import('../helpers/db.ts');
+const { db, eventsOf } = await import('../helpers/db.ts');
 const { projects, tasks, taskEvents } = await import('#db/schema.server.ts');
 const { approve, requestChanges, setVerdictDeps } = await import('#modules/pipeline/verdicts.server.ts');
-const { listEvents } = await import('#modules/tasks/queries/list-events.server.ts');
 
 type TaskInsert = typeof tasks.$inferInsert;
 
@@ -46,7 +45,7 @@ afterEach(() => restore());
 const inReview = (patch: Partial<TaskInsert> = {}) =>
   db.insert(tasks).values({ projectId: project.id, title: 'Add an about page', status: 'ready_for_review', prNumber: 7, prUrl: 'https://github.com/harness/verdicts/pull/7', githubIssueNumber: 3, machineId: 'm1', machineName: 'genie-verdicts-m1', previewUrl: PREVIEW, ...patch }).returning().then((r) => r[0]);
 const reload = (id: string) => db.query.tasks.findFirst({ where: { id } }).then((t) => t!);
-const messages = async (id: string, kind?: string) => (await listEvents(id)).filter((e) => !kind || e.kind === kind).map((e) => e.message);
+const messages = async (id: string, kind?: string) => (await eventsOf(id)).filter((e) => !kind || e.kind === kind).map((e) => e.message);
 
 test('approve merges the PR once, moves the card to done, comments, and fills the production URL', async () => {
   const task = await inReview();

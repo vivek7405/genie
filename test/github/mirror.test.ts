@@ -3,14 +3,13 @@
 // the scripted fake, with a project row whose board ids are resolved.
 import { test, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { db } from '../helpers/db.ts';
+import { db, eventsOf } from '../helpers/db.ts';
 import { fakeGithub } from '../helpers/github.ts';
 import { projects, tasks } from '#db/schema.server.ts';
 import { setGithubTransport } from '#modules/github/client.server.ts';
 import { publishTask } from '#modules/github/mirror.server.ts';
 import { transition } from '#modules/pipeline/transitions.server.ts';
 import { approve, requestChanges } from '#modules/pipeline/verdicts.server.ts';
-import { listEvents } from '#modules/tasks/queries/list-events.server.ts';
 
 const fake = fakeGithub();
 setGithubTransport(fake.transport);
@@ -47,7 +46,7 @@ test('a transition to review moves the card and posts the ready comment', async 
   assert.match(posted[0], /GENIE:/);
   const row = await taskRow(task.id);
   assert.ok(row.syncedAt instanceof Date);
-  assert.ok((await listEvents(task.id)).some((e) => e.kind === 'github' && e.message === 'Mirrored Review to GitHub'));
+  assert.ok((await eventsOf(task.id)).some((e) => e.kind === 'github' && e.message === 'Mirrored Review to GitHub'));
 });
 
 test('a task without an item id looks it up from the issue node and stores it', async () => {
@@ -86,7 +85,7 @@ test('an offline GitHub leaves the transition successful and records the failure
     const result = await transition(task.id, 'in_progress', 'system');
     assert.equal(result.success, true);
     assert.equal((await taskRow(task.id)).status, 'in_progress');
-    const events = await listEvents(task.id);
+    const events = await eventsOf(task.id);
     assert.ok(events.some((e) => e.kind === 'github' && /GitHub mirror failed/.test(e.message)));
   } finally {
     setGithubTransport(fake.transport);
@@ -106,7 +105,7 @@ test('publishTask opens a marked issue, adds it to the board in Todo and links t
   const created = fake.calls.find((c) => c.method === 'POST' && c.path === `repos/${repo}/issues`)!;
   assert.equal(created.body?.body, `Do it\n\n<!-- genie-task ${task.id} -->`);
   assert.deepEqual(moves(), [{ projectId: 'PVT_1', itemId: 'ITEM_30', fieldId: 'FIELD_1', optionId: 'todo-id' }]);
-  assert.ok((await listEvents(task.id)).some((e) => e.message.startsWith('Opened issue #30')));
+  assert.ok((await eventsOf(task.id)).some((e) => e.message.startsWith('Opened issue #30')));
 });
 
 test('publishTask with an existing issue links without creating', async () => {
@@ -118,7 +117,7 @@ test('publishTask with an existing issue links without creating', async () => {
   assert.equal(linked.githubIssueNumber, 31);
   assert.equal(linked.githubItemId, 'ITEM_31');
   assert.ok(!fake.calls.some((c) => c.method === 'POST' && c.path === `repos/${repo}/issues`));
-  assert.ok((await listEvents(task.id)).some((e) => e.message.startsWith('Linked to issue #31')));
+  assert.ok((await eventsOf(task.id)).some((e) => e.message.startsWith('Linked to issue #31')));
 });
 
 test('requestChanges from genie posts the feedback to the issue, from GitHub it does not', async () => {
@@ -150,5 +149,5 @@ test('approve moves the card to Done and posts the approved comment', async () =
   assert.equal((await taskRow(task.id)).status, 'done');
   assert.deepEqual(moves().map((m) => m.optionId), ['done-id']);
   assert.deepEqual(commentsPosted(41), ['<!-- genie-done -->\nApproved.']);
-  assert.ok((await listEvents(task.id)).some((e) => e.message === 'Approved on GitHub'));
+  assert.ok((await eventsOf(task.id)).some((e) => e.message === 'Approved on GitHub'));
 });

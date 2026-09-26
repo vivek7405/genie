@@ -3,12 +3,11 @@
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 
-const { db } = await import('../helpers/db.ts');
+const { db, eventsOf } = await import('../helpers/db.ts');
 const { fakeDeps, okRun, PLAN_TEXT, PR_LIST, PR_URL, PREVIEW_URL } = await import('../helpers/stage-deps.ts');
 const { projects, tasks, taskEvents } = await import('#db/schema.server.ts');
 const stages = await import('#modules/pipeline/stages.server.ts');
 const { runStage, setStageDeps, APP_DIR, SCAFFOLD_CMD } = stages;
-const { listEvents } = await import('#modules/tasks/queries/list-events.server.ts');
 
 type Fake = ReturnType<typeof fakeDeps>;
 type TaskRow = typeof tasks.$inferSelect;
@@ -40,7 +39,7 @@ async function reload(id: string): Promise<TaskRow> {
 }
 
 async function messages(id: string, kind?: string): Promise<string[]> {
-  return (await listEvents(id)).filter((e) => !kind || e.kind === kind).map((e) => e.message);
+  return (await eventsOf(id)).filter((e) => !kind || e.kind === kind).map((e) => e.message);
 }
 
 // Stage 1: todo to planning.

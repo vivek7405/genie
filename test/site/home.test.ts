@@ -2,17 +2,24 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { appDir } from '../helpers/db.ts';
+import { signInAs } from '../helpers/auth.ts';
 import { createRequestHandler } from '@webjsdev/server';
-import { testRequest } from '@webjsdev/server/testing';
+import { testRequest, withSessionCookie } from '@webjsdev/server/testing';
 
 const app = await createRequestHandler({ appDir, dev: true });
+const { cookies } = await signInAs('harness');
+const me = withSessionCookie({}, cookies);
 
-test('/ is the marketing home: the loop, the sandbox, the stack, and a way into the dashboard', async () => {
+test('/ is the marketing home: the loop, the sandbox, the stack, and a way in', async () => {
   const res = await testRequest(app.handle, '/');
   assert.equal(res.status, 200);
   const body = await res.text();
   for (const step of ['Write the task', 'Plan', 'Build', 'Review']) assert.match(body, new RegExp(`>${step}<`), step);
-  assert.match(body, /href="\/dashboard" data-no-router/);
+  const header = (html: string) => html.slice(html.indexOf('<header'), html.indexOf('</header>'));
+  assert.match(header(body), /href="\/login" data-no-router>Sign in</, 'signed out, the header button signs in');
+  assert.doesNotMatch(header(body), /href="\/dashboard"/);
+  const signedIn = await (await testRequest(app.handle, '/', me)).text();
+  assert.match(header(signedIn), /href="\/dashboard" data-no-router>Dashboard</, 'signed in, the same button opens the dashboard');
   assert.match(body, /id="sandbox"/);
   assert.match(body, /id="stack"/);
   assert.match(body, /<footer[\s\S]*href="\/brand"/, 'brand is linked from the footer');
@@ -25,7 +32,7 @@ test('/ is the marketing home: the loop, the sandbox, the stack, and a way into 
 });
 
 test('/dashboard is the product shell, with its own header', async () => {
-  const res = await testRequest(app.handle, '/dashboard');
+  const res = await testRequest(app.handle, '/dashboard', me);
   assert.equal(res.status, 200);
   const body = await res.text();
   assert.match(body, /aria-current="page"[^>]*>Projects</);

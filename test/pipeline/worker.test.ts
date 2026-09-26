@@ -7,17 +7,18 @@
 import { test, describe, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 
-const { db } = await import('../helpers/db.ts');
+const { db, eventsOf } = await import('../helpers/db.ts');
+const { signInAs, actingAs } = await import('../helpers/auth.ts');
 const { fakeDeps } = await import('../helpers/stage-deps.ts');
 const { projects, tasks } = await import('#db/schema.server.ts');
 const { eq, inArray } = await import('drizzle-orm');
 const { setStageDeps, RateLimitedError } = await import('#modules/pipeline/stages.server.ts');
 const { tick, drain, nextDeferral, releaseClaims, stopWorker, setStageRunner, workerStatus, STALE_AFTER_MS } = await import('#modules/pipeline/worker.server.ts');
 const { transition } = await import('#modules/pipeline/transitions.server.ts');
-const { listEvents } = await import('#modules/tasks/queries/list-events.server.ts');
 const { nextSystemStatus } = await import('#modules/tasks/utils/state-machine.ts');
 
-const [project] = await db.insert(projects).values({ name: 'w', githubRepo: `harness/worker-${Date.now()}` }).returning();
+const { user, cookies } = await signInAs('harness');
+const [project] = await db.insert(projects).values({ userId: user.id, name: 'w', githubRepo: `harness/worker-${Date.now()}` }).returning();
 
 // Every rule test gets its own project so the per-project cap never bleeds
 // between tests.
@@ -67,7 +68,7 @@ describe('the pipeline over the stage dependency fake', () => {
     assert.equal(row.error, null);
     assert.equal(row.machineId, 'm-1');
     assert.deepEqual((await tick({ concurrency: 1 })).includes(task.id), false, 'nothing left for the system to do');
-    const kinds = (await listEvents(task.id)).map((e) => e.kind);
+    const kinds = (await eventsOf(task.id)).map((e) => e.kind);
     assert.ok(kinds.includes('log') && kinds.includes('status'));
   });
 
@@ -81,7 +82,7 @@ describe('the pipeline over the stage dependency fake', () => {
     assert.equal(row.status, 'todo');
     assert.match(row.error ?? '', /quota reached/);
     assert.equal(row.claimedAt, null);
-    assert.ok((await listEvents(task.id)).some((e) => e.kind === 'error' && /quota reached/.test(e.message)));
+    assert.ok((await eventsOf(task.id)).some((e) => e.kind === 'error' && /quota reached/.test(e.message)));
     assert.equal((await tick({ concurrency: 1 })).includes(task.id), false, 'a failed task waits for Retry');
   });
 
@@ -151,7 +152,7 @@ describe('the claim rules through the stage runner seam', () => {
     assert.equal(row.deferCount, 1);
     assert.equal(row.attempt, 1);
     assert.equal(row.claimedAt, null);
-    assert.ok((await listEvents(task.id)).some((e) => e.kind === 'log' && e.message.includes('Waiting for Claude quota, retrying at')));
+    assert.ok((await eventsOf(task.id)).some((e) => e.kind === 'log' && e.message.includes('Waiting for Claude quota, retrying at')));
 
     // The window resets in 10 minutes: the deferral lands a minute after it.
     resetsAt = new Date(Date.now() + 10 * 60_000);
@@ -198,7 +199,7 @@ describe('the claim rules through the stage runner seam', () => {
     const [plan] = await db.insert(tasks).values({ projectId: p.id, title: 'crashed plan', status: 'planning', attempt: 1, claimedAt: minutesAgo(20) }).returning();
     assert.ok((await tick({ concurrency: 1 })).includes(plan.id), 'planning is stale after 15 minutes');
     await drain();
-    assert.ok((await listEvents(plan.id)).some((e) => e.message === 'Claim from attempt 1 expired after 20 min, re-claiming'));
+    assert.ok((await eventsOf(plan.id)).some((e) => e.message === 'Claim from attempt 1 expired after 20 min, re-claiming'));
     assert.equal((await rowOf(plan.id)).attempt, 2, 'a stale re-claim is a new attempt');
     await db.update(tasks).set({ status: 'done' }).where(eq(tasks.id, plan.id));
 
@@ -220,7 +221,7 @@ describe('the claim rules through the stage runner seam', () => {
     assert.equal(row.error, 'Gave up after 3 attempts: the stage never completed');
     assert.equal(row.status, 'planning');
     assert.equal(row.claimedAt, null);
-    assert.ok((await listEvents(task.id)).some((e) => e.kind === 'error'));
+    assert.ok((await eventsOf(task.id)).some((e) => e.kind === 'error'));
   });
 
   test('stopWorker drains, then releases the claims of what is still running', async () => {
@@ -237,7 +238,7 @@ describe('the claim rules through the stage runner seam', () => {
       await stopWorker();
       const row = await rowOf(task.id);
       assert.equal(row.claimedAt, null);
-      assert.ok((await listEvents(task.id)).some((e) => e.message.startsWith('Interrupted by a shutdown during Todo')));
+      assert.ok((await eventsOf(task.id)).some((e) => e.message.startsWith('Interrupted by a shutdown during Todo')));
       assert.equal(workerStatus().stopping, false, 'the worker can be started again');
     } finally {
       finish();
@@ -253,7 +254,7 @@ describe('the claim rules through the stage runner seam', () => {
     assert.deepEqual(released.map((r) => r.id), [live.id]);
     assert.equal((await rowOf(live.id)).claimedAt, null);
     assert.equal((await rowOf(review.id)).claimedAt?.getTime(), review.claimedAt?.getTime(), 'a human-owned row is untouched');
-    assert.ok((await listEvents(live.id)).some((e) => e.message === 'Interrupted by a restart during Plan, the next worker resumes it'));
+    assert.ok((await eventsOf(live.id)).some((e) => e.message === 'Interrupted by a restart during Plan, the next worker resumes it'));
     assert.ok((await tick({ concurrency: 1 })).includes(live.id), 'no stale window to wait out');
     await drain();
     assert.equal((await rowOf(live.id)).status, 'in_progress');
@@ -281,14 +282,14 @@ test('Retry clears the failure and the attempt count, and the next tick re-runs 
   }).returning();
   const form = new FormData();
   form.set('taskId', task.id);
-  const result = await retryTask(form);
+  const result = await actingAs(cookies, () => retryTask(form));
   assert.ok(result.success);
   let row = await rowOf(task.id);
   assert.equal(row.error, null);
   assert.equal(row.claimedAt, null);
   assert.equal(row.attempt, 0);
   assert.equal(row.feedback, 'make it dark mode', 'the pending feedback survives a retry');
-  assert.ok((await listEvents(task.id)).some((e) => e.message === 'Retrying'));
+  assert.ok((await eventsOf(task.id)).some((e) => e.message === 'Retrying'));
 
   const started = await tick({ concurrency: 1 });
   assert.ok(started.includes(task.id));
