@@ -1,0 +1,65 @@
+name: CI
+
+# The cloud half of CI for genie. The step list itself lives in
+# package.json under "webjs": { "ci": { "steps": [...] } }, and `npm run ci`
+# runs it: on a developer machine before a push, and here on every PR into
+# main and every push to main, so the two can never drift. This job only
+# prepares the runner (Node, dependencies, a browser, the database) and then
+# runs that one command.
+#
+# One job on purpose. Each step is still a collapsible log group with its own
+# result line, a failing step is annotated, and the run's step table lands in
+# the job summary, so a failure names the layer that broke. Mark this job as a
+# required status check in the branch-protection rule for main. A team that
+# wants one required check PER LAYER can add a matrix job that runs
+# `npx webjs ci --only "<group title>"` per entry.
+#
+# The local pre-commit hook deliberately runs none of this, so a commit stays
+# fast; `npm run ci` before pushing is the local gate. To hold a merge until a
+# LOCAL run is green, `npm run ci -- --signoff` posts a green commit status
+# through basecamp/gh-signoff, which branch protection can require (`gh signoff
+# install`), the Rails posture. Free on public repos (ubuntu-latest has
+# unlimited Actions minutes).
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A newer push to the same branch cancels the older in-flight run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: CI (npm run ci)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: file:./ci.db
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Install Playwright Chromium (browser + e2e layers)
+        run: npx playwright install --with-deps chromium
+      # The scaffold's e2e test (test/hello/e2e/) drives a real browser via
+      # puppeteer-core, which is not a default dependency (the test skips when
+      # it is absent). Install it so the e2e layer runs here rather than
+      # skipping silently.
+      - name: Install puppeteer-core
+        run: npm install --no-save puppeteer-core
+      - name: Resolve the Chromium binary path
+        run: echo "CHROMIUM_PATH=$(node -e "console.log(require('playwright-core').chromium.executablePath())")" >> "$GITHUB_ENV"
+      - name: Set up the database (generate + apply migrations)
+        run: npm run db:generate && npm run db:migrate
+      # Everything above prepares the runner. This is the whole gate.
+      - run: npm run ci
