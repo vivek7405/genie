@@ -1,9 +1,12 @@
 'use server';
-// Form-bound from the board page. A new task lands in Todo and the worker
-// claims it on its next tick.
+// Form-bound from the board page. A new task lands in Todo, becomes a GitHub
+// issue and a Todo card straight away (the sync retries when that fails), and
+// the worker claims it on its next tick.
 import { db } from '#db/connection.server.ts';
 import { tasks } from '#db/schema.server.ts';
 import type { ActionResult } from '@webjsdev/server';
+import { describeError } from '#modules/github/client.server.ts';
+import { publishTask } from '#modules/github/mirror.server.ts';
 import { recordEvent, notifyBoard } from '#modules/pipeline/events.server.ts';
 import type { Task } from '../types.ts';
 
@@ -30,6 +33,12 @@ export async function createTask(input: CreateTaskInput): Promise<ActionResult<T
   if (!project) return { success: false, error: 'Unknown project.', status: 404 };
   const [row] = await db.insert(tasks).values(input).returning();
   await recordEvent(row.id, 'status', 'Created in Todo');
-  notifyBoard(row);
-  return { success: true, data: row, redirect: `/dashboard/projects/${project.id}` };
+  let task = row;
+  try {
+    task = await publishTask(project, row);
+  } catch (err) {
+    await recordEvent(row.id, 'github', `Could not open the GitHub issue, the sync will retry: ${describeError(err)}`);
+  }
+  notifyBoard(task);
+  return { success: true, data: task, redirect: `/dashboard/projects/${project.id}` };
 }
