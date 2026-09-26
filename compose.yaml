@@ -1,10 +1,13 @@
-# genie local parity with production, using the same Dockerfile, one service.
+# genie under docker compose on a laptop, using the same Dockerfile, one
+# service:
 #
-#   docker compose up --build   →   http://localhost:8080
+#   docker compose up --build   then open http://localhost:8080
 #
-# In production the webdeploy tool (ubicloud + uncloud) provisions a managed
-# Postgres and injects DATABASE_URL + AUTH_SECRET for you. Locally this uses
-# the scaffold's SQLite file on a named volume so data survives `compose down`.
+# Production runs on pilots from compose.pilots.yaml (`pilot deploy` picks that
+# file first). This one keeps a host port mapping and a local named volume so
+# the SQLite file survives `docker compose down`. It is also the only place the
+# SIGTERM drain is exercised: `docker compose stop` signals the process, while
+# a pilots redeploy suspends the replica without a signal.
 services:
   app:
     build: .
@@ -12,10 +15,8 @@ services:
       - "8080:8080"
     environment:
       PORT: 8080
-      # SQLite on a volume for local dev. For production, scaffold with
-      # --db postgres (or swap db/columns.server.ts + db/connection.server.ts
-      # for the pg variant) and point DATABASE_URL at your managed Postgres.
-      DATABASE_URL: file:/data/dev.db
+      # The same path the pilots volume uses, so the two files never differ.
+      DATABASE_URL: file:/data/genie.db
       # Generate: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
       AUTH_SECRET: ${AUTH_SECRET:-change-me-please-at-least-32-characters!}
       # Uncomment to back cache / sessions / rate-limiting / pub-sub with Redis

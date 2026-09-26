@@ -1,0 +1,42 @@
+# How Genie deploys on Pilots. `pilot deploy` picks this file ahead of
+# compose.yaml, which stays for docker compose on a laptop.
+#
+# One service, one volume, one resident replica: the SQLite file lives on the
+# genie-data volume at /data and survives redeploys, and min_machines_running
+# keeps the worker awake while nobody is connected. The three credentials are
+# secret:// references resolved by `pilot secret set <name>` (keyed by the
+# top-level name below), so no value ever lives in this repo.
+#
+# Deliberately absent: ports (the router dials 8080), ${VAR} interpolation,
+# labels, env_file, container_name, stop_grace_period and stop_signal (the
+# planner refuses them; a replica is suspended rather than signalled, so a
+# redeploy is a power cut and the worker resumes its claim on the next boot).
+name: genie
+services:
+  genie:
+    build: .
+    environment:
+      PORT: "8080"
+      NODE_ENV: production
+      DATABASE_URL: file:/data/genie.db
+      GENIE_WORKER: "1"
+      GENIE_CONCURRENCY: "1"
+      PILOT_API_KEY: secret://pilot_api_key
+      CLAUDE_CODE_OAUTH_TOKEN: secret://claude_code_oauth_token
+      GH_TOKEN: secret://github_token
+    volumes:
+      - genie-data:/data
+    # The same probe as the Dockerfile HEALTHCHECK. With a compose file present
+    # Pilots takes the health check from here, and readiness.ts folds the
+    # migrated database into /__webjs/ready.
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:'+(process.env.PORT||8080)+'/__webjs/ready').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 15s
+      timeout: 3s
+      start_period: 40s
+      retries: 5
+    x-pilots:
+      min_machines_running: 1
+      size_gib: 1
+volumes:
+  genie-data:
