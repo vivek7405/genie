@@ -4,6 +4,7 @@ import { buttonClass } from '#components/ui/button.ts';
 import { brandMark } from '#lib/design/logo.ts';
 import { shellStyles, themeScript } from '#lib/design/shell.ts';
 import { cn } from '#lib/utils/cn.ts';
+import { auth } from '#modules/auth/auth.server.ts';
 import '#components/theme-toggle.ts';
 
 const TITLE = 'Genie - write the task, review the pull request';
@@ -31,8 +32,11 @@ const navLink = 'whitespace-nowrap rounded-sm px-3 py-1.5 text-body text-muted-f
 
 // The public site's root layout: the same tokens and theme as the product,
 // with its own chrome. The dashboard link is a full page load (data-no-router)
-// because the product is a different shell.
-export default function SiteLayout({ children }: LayoutProps) {
+// because the product is a different shell. Whether it reads Sign in or
+// Dashboard is a cookie read (auth(), no database), which also keeps every
+// site page out of the shared HTML cache, as a per-visitor header must be.
+export default async function SiteLayout({ children }: LayoutProps) {
+  const signedIn = Boolean((await auth())?.user);
   return html`
     ${themeScript(cspNonce())}
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -52,7 +56,9 @@ export default function SiteLayout({ children }: LayoutProps) {
         <div class="ml-auto flex items-center gap-2">
           <a href="https://github.com/vivek7405/genie" target="_blank" rel="noopener" class="hidden text-meta text-muted-foreground no-underline hover:text-foreground sm:inline">GitHub</a>
           <theme-toggle></theme-toggle>
-          <a class=${cn(buttonClass({ size: 'sm' }), 'no-underline')} href="/dashboard" data-no-router>Dashboard</a>
+          ${signedIn
+            ? html`<a class=${cn(buttonClass({ size: 'sm' }), 'no-underline')} href="/dashboard" data-no-router>Dashboard</a>`
+            : html`<a class=${cn(buttonClass({ size: 'sm' }), 'no-underline')} href="/login" data-no-router>Sign in</a>`}
         </div>
       </div>
     </header>
