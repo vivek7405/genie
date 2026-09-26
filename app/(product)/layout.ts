@@ -22,7 +22,7 @@ export default function ProductLayout({ children, url }: LayoutProps) {
     ${shellStyles()}
     <header class="fixed inset-x-0 top-0 z-40 border-b border-border bg-background">
       <div class="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:px-6">
-        <a href="/" data-no-router class="flex shrink-0 items-center gap-2 font-mono text-body font-semibold tracking-tight text-foreground no-underline" style="--logo-accent: var(--glow)">
+        <a href="/dashboard" class="flex shrink-0 items-center gap-2 font-mono text-body font-semibold tracking-tight text-foreground no-underline" style="--logo-accent: var(--glow)">
           ${brandMark(22)}
           genie
         </a>

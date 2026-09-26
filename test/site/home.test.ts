@@ -28,6 +28,8 @@ test('/dashboard is the product shell, with its own header', async () => {
   const body = await res.text();
   assert.match(body, /aria-current="page"[^>]*>Projects</);
   assert.match(body, /Connect a repo/);
+  const header = body.slice(body.indexOf('<header'), body.indexOf('</header>'));
+  assert.match(header, /<a href="\/dashboard"[^>]*>[\s\S]*?genie[\s\S]*?<\/a>/, 'the wordmark returns to the dashboard, not the site');
 });
 
 test('/brand renders under the site shell', async () => {
