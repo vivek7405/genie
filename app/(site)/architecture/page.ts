@@ -17,7 +17,7 @@ import { cn } from '#lib/utils/cn.ts';
 export const metadata = {
   title: 'Architecture',
   description:
-    'How Genie is built: one WebJs process, a SQLite state machine as the queue, GitHub as a polled mirror, one Pilots microVM per task with Claude Code inside it, and previews and deploys left to the platform.',
+    'How Genie is built: one WebJs process, a SQLite state machine as the queue, GitHub as a polled mirror, one Pilots machine per task with Claude Code inside it, and previews and deploys left to the platform.',
 };
 
 const PROSE = siteProseClass();
@@ -43,7 +43,7 @@ const LAYERS: [string, string][] = [
   ],
   [
     'A machine per task',
-    'Every task gets its own Pilots microVM, forked from a checkpoint of a base machine that already has git, gh and Claude Code on it. Claude Code runs there headless, with the repository cloned beside it. The credentials it needs arrive as the environment of one process and are never written to the machine’s disk.',
+    'Every task gets its own Pilots machine, forked from a checkpoint of a base machine that already has git, gh and Claude Code on it. Claude Code runs there headless, with the repository cloned beside it. The credentials it needs arrive as the environment of one process and are never written to the machine’s disk.',
   ],
   [
     'The platform deploys, Genie does not',
@@ -63,7 +63,7 @@ const RULES: [string, string][] = [
   ],
   [
     'The agent never runs on your machine or on Genie’s',
-    'Each task forks its own microVM and does everything there: the clone, the plan, the build, the checks, the push. When the process that exec’d into it is gone the machine keeps running, so a redeploy of Genie in the middle of a build does not lose the build.',
+    'Each task forks its own machine and does everything there: the clone, the plan, the build, the checks, the push. When the process that exec’d into it is gone the machine keeps running, so a redeploy of Genie in the middle of a build does not lose the build.',
   ],
   [
     'A credential is the environment of one process, never a file',
@@ -166,7 +166,7 @@ export default function Architecture() {
       <div class="mx-auto max-w-6xl px-4 pb-16 pt-14 sm:px-6 md:pb-20 md:pt-20">
         <h1 class="m-0 max-w-[22ch] text-[2.2rem] font-bold leading-[1.05] tracking-tight sm:text-[2.9rem]">One process, one table, one machine per task</h1>
         <p class=${cn(PROSE, 'mt-6 text-heading')}>
-          Genie is a small system on purpose. A WebJs app with a SQLite file beside it, a worker loop inside it, GitHub read on a timer, and a fresh microVM for every task. The interesting decisions are where it refuses to do more than that, and they are all below.
+          Genie is a small system on purpose. A WebJs app with a SQLite file beside it, a worker loop inside it, GitHub read on a timer, and a fresh machine for every task. The interesting decisions are where it refuses to do more than that, and they are all below.
         </p>
         <div class="mt-8 flex flex-wrap gap-3">
           <a class=${cn(buttonClass(), 'no-underline')} href="/architecture/internals">The internals, with diagrams</a>
@@ -415,7 +415,7 @@ order by created_at</pre>
     ${section({
       id: 'redeploy',
       heading: 'A redeploy is a power cut, and the design assumes one',
-      lede: 'On Pilots a volume-backed service is one replica, redeployed in place by stopping its microVM from the host, so nothing inside Genie ever sees a shutdown signal. Recovery is therefore designed for the next boot, not for the last breath of the old process.',
+      lede: 'On Pilots a volume-backed service is one replica, redeployed in place by stopping its machine from the host, so nothing inside Genie ever sees a shutdown signal. Recovery is therefore designed for the next boot, not for the last breath of the old process.',
       body: html`
         <div class="grid gap-5 md:grid-cols-3">
           <div class=${cn(cardClass(), 'p-5')}>

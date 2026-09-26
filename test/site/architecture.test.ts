@@ -34,7 +34,7 @@ test('/architecture tells the shape: the layers, the rules, the costs, with a fi
   assert.match(body, /<svg[^>]*role="img"/, 'the overview is a drawn figure');
   assert.match(body, /href="\/architecture\/internals"/, 'links to the internals');
   assert.match(body, /<footer[\s\S]*href="\/architecture"[\s\S]*href="\/brand"/, 'the footer carries Architecture before Brand');
-  assert.doesNotMatch(body, /—/, 'no em-dashes');
+  assert.doesNotMatch(body, /\u2014/, 'no em-dashes');
 });
 
 test('/architecture/internals goes mechanism by mechanism, each with a figure', async () => {
@@ -63,7 +63,7 @@ test('/architecture/internals goes mechanism by mechanism, each with a figure', 
   assert.match(body, /fill="var\(--ink\)"/, 'figures paint the live tokens');
   assert.match(body, /href="\/architecture"/, 'links back to the architecture page');
   assert.match(body, /<footer[\s\S]*href="\/architecture"/, 'the footer link is present here too');
-  assert.doesNotMatch(body, /—/, 'no em-dashes');
+  assert.doesNotMatch(body, /\u2014/, 'no em-dashes');
 });
 
 test('the header nav does not carry Architecture', async () => {
