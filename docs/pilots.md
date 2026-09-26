@@ -45,7 +45,12 @@ cleanup joins against.
 The default org quota is 20 machines: the base plus at most 19 task machines.
 When the fleet refuses a fork, the task fails with `pilots machine quota
 reached (20). Destroy finished task machines and retry.` and the card shows
-it. Machine cleanup arrives with M6.
+it. `npm run cleanup:machines` prints what it would destroy and, with
+`-- --yes`, destroys the machine of a task that is done, of a task that
+failed more than `GENIE_CLEANUP_DAYS` days ago, and any `genie-` machine
+that old which no task knows (joined by `tasks.machineId`, then
+`tasks.machineName`, never by a label). It skips `genie-base` and anything
+that is not genie's, and prints the quota headroom at the end.
 
 `GENIE_PILOTS_FORK=0` builds every task machine from scratch (a plain create,
 a resize to 2048 MiB, and one launcher run to install Claude Code) instead of

@@ -111,7 +111,8 @@ export async function runStage(task: Task): Promise<TaskStatus | null> {
   }
 }
 
-// Rate-limit signal for #6. In M4 the worker treats it like any failure.
+// The rate-limit signal. The worker catches it and defers the task with a
+// backoff instead of failing the stage.
 export class RateLimitedError extends Error {
   resetsAt: Date | null;
   constructor(resetsAt: Date | null = null) {

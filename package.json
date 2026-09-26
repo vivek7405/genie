@@ -23,7 +23,8 @@
     "db:push": "webjs db push",
     "db:studio": "webjs db studio",
     "db:seed": "webjs db seed",
-    "pilots:smoke": "node --env-file-if-exists=.env scripts/pilots-smoke.ts"
+    "pilots:smoke": "node --env-file-if-exists=.env scripts/pilots-smoke.ts",
+    "cleanup:machines": "node --env-file-if-exists=.env scripts/cleanup-machines.ts"
   },
   "dependencies": {
     "@pilots/sdk": "^0.1.1",
