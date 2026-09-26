@@ -401,6 +401,62 @@ test('parseSelfReview reads the counts out of a free-form summary', () => {
   assert.deepEqual(stages.parseSelfReview(''), { fixed: 0, comments: 0 });
 });
 
+// The log feed.
+
+const assistant = (blocks: unknown[]) => JSON.stringify({ type: 'assistant', message: { content: blocks } });
+
+test('feedLines keeps the agent prose and the tool it reached for, capped, and drops everything else', () => {
+  const line = assistant([
+    { type: 'text', text: 'Reading the repo layout.\nThen the manifest.' },
+    { type: 'tool_use', name: 'Bash', input: { command: 'ls -la\ncat package.json', description: 'List the repo root' } },
+    { type: 'tool_use', name: 'Read', input: { file_path: '/home/pilot/app/AGENTS.md' } },
+    { type: 'tool_use', name: 'Grep', input: { pattern: 'routes' } },
+    { type: 'text', text: '   ' },
+  ]);
+  assert.deepEqual(stages.feedLines(line), ['Reading the repo layout.', 'Bash: List the repo root', 'Read: /home/pilot/app/AGENTS.md', 'Grep: routes']);
+  assert.deepEqual(stages.feedLines(JSON.stringify({ type: 'user', message: { content: [{ type: 'text', text: 'x' }] } })), []);
+  assert.deepEqual(stages.feedLines(JSON.stringify({ type: 'system', subtype: 'init' })), []);
+  assert.deepEqual(stages.feedLines(JSON.stringify({ type: 'result', result: 'DONE' })), []);
+  assert.deepEqual(stages.feedLines('{"type":"assist'), []);
+  assert.deepEqual(stages.feedLines('null'), []);
+  const [long] = stages.feedLines(assistant([{ type: 'text', text: 'x'.repeat(500) }]));
+  assert.equal(long.length, 240);
+  assert.ok(long.endsWith('\u2026'));
+});
+
+test('the feed tails only the new bytes, completes a partial line on the next poll, and flushes at the end', async () => {
+  const l1 = assistant([{ type: 'text', text: 'First' }]);
+  const l2 = assistant([{ type: 'tool_use', name: 'Read', input: { file_path: 'README.md' } }]);
+  const l3 = assistant([{ type: 'text', text: 'Third' }]);
+  const chunk1 = `${l1}\n${l2}\n${l3.slice(0, 20)}`;
+  const chunk2 = `${l3.slice(20)}\n`;
+  fake.onCommand('tail -c +', (_cmd, nth) => ({ stdout: nth === 0 ? chunk1 : nth === 1 ? chunk2 : '' }));
+  let seenDuringRun = 0;
+  fake.onClaude(async () => {
+    await new Promise((r) => setTimeout(r, 60));
+    seenDuringRun = (await messages(task.id, 'log')).filter((m) => ['First', 'Read: README.md', 'Third'].includes(m)).length;
+    return okRun();
+  });
+  const task = await insertTask({ status: 'planning', machineId: 'm1' });
+  assert.equal(await runStage(task), 'in_progress');
+  const feed = (await messages(task.id, 'log')).filter((m) => ['First', 'Read: README.md', 'Third'].includes(m));
+  assert.deepEqual(feed, ['First', 'Read: README.md', 'Third']);
+  assert.equal(seenDuringRun, 3, 'the lines reached the feed while the run was in flight');
+  const offsets = fake.commands('tail -c +').map((c) => Number(/tail -c \+(\d+)/.exec(c)![1]));
+  assert.equal(offsets[0], 1);
+  assert.equal(offsets[1], Buffer.byteLength(chunk1) + 1);
+  assert.equal(offsets[2], Buffer.byteLength(chunk1) + Buffer.byteLength(chunk2) + 1);
+  assert.ok(offsets.every((o, i) => i === 0 || o >= offsets[i - 1]), 'offsets never go back');
+  assert.equal(fake.commands(': > /home/pilot/agent.log').length, 1, 'the log is emptied before the run');
+  assert.ok(fake.timeline.indexOf('exec:: > /home/pilot/agent.log') < fake.timeline.indexOf('claude'));
+});
+
+test('a poll that throws is a missed poll, not a failed stage', async () => {
+  fake.onCommand('tail -c +', new Error('exec failed'));
+  const task = await insertTask({ status: 'planning', machineId: 'm1' });
+  assert.equal(await runStage(task), 'in_progress');
+});
+
 test('runStage returns null for a status the system does not own', async () => {
   const task = await insertTask({ status: 'ready_for_review' });
   assert.equal(await runStage(task), null);
