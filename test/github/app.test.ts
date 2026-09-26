@@ -135,7 +135,7 @@ test('a call for the user acts with the user token, and refuses a user without o
   fake.on('GET', 'user/installations', () => ({ installations: [] }));
   await ghApi('user/installations', { auth: viaUser(user) });
   assert.equal(bearer(), 'Bearer gho_fake_user');
-  await assert.rejects(ghApi('user/installations', { auth: viaUser({ accessToken: null }) }), (err: GithubError) => err.status === 401 && /Sign out and in again/.test(err.message));
+  await assert.rejects(ghApi('user/installations', { auth: viaUser({ accessToken: null, login: 'octo' }) }), (err: GithubError) => err.status === 401 && /Sign out and in again/.test(err.message));
 });
 
 test('a project without an installation keeps the operator path (no token read behind a test transport)', async () => {

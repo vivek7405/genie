@@ -45,14 +45,14 @@ export class GithubError extends Error {
 // answers per signed-in person; `app` is the App's own endpoints.
 export type TokenSource =
   | { token: 'installation'; project: Pick<Project, 'installationId'> }
-  | { token: 'user'; user: Pick<User, 'accessToken'> }
+  | { token: 'user'; user: Pick<User, 'accessToken' | 'login'> }
   | { token: 'app' };
 
 export const viaInstallation = (project: Pick<Project, 'installationId'>): TokenSource => ({ token: 'installation', project });
-export const viaUser = (user: Pick<User, 'accessToken'>): TokenSource => ({ token: 'user', user });
+export const viaUser = (user: Pick<User, 'accessToken' | 'login'>): TokenSource => ({ token: 'user', user });
 
 interface CachedToken { token: string; expiresAt: number }
-interface ClientState { transport: GithubTransport | null; token: string | null; installations: Map<number, CachedToken> }
+interface ClientState { transport: GithubTransport | null; token: string | null; installations: Map<number, CachedToken>; ownerLogin?: string | null }
 // Dev re-imports modules on reload; the override and the token caches ride
 // globalThis so one copy survives, the same trick worker.server.ts uses.
 const g = globalThis as unknown as { __genie_github?: ClientState };
@@ -184,13 +184,44 @@ export interface GraphqlInit { auth?: TokenSource }
 // a bad query or a missing scope, so that array is turned into a GithubError.
 export async function ghGraphql<T>(query: string, variables: Record<string, unknown> = {}, init: GraphqlInit = {}): Promise<T> {
   const res = await request(`${API}/graphql`, { method: 'POST', body: JSON.stringify({ query, variables }) }, await resolveAuth(init.auth));
-  const payload = (await res.json()) as GraphqlPayload<T>;
+  let payload = (await res.json()) as GraphqlPayload<T>;
+  if (payload.errors?.length && init.auth?.token === 'user' && payload.errors.every((e) => NOT_FOR_APPS.test(e.message))) {
+    // GitHub Apps have no permission that reaches a PERSON's own Projects v2
+    // boards (only an organisation's), so a sign-in token is refused there
+    // with "Resource not accessible by integration". The deployment's own
+    // token (GH_TOKEN) can read them when it belongs to the same GitHub login
+    // as the person signed in, and only then: one person, one account.
+    const own = await ownTokenFor(init.auth.user.login);
+    if (own) {
+      const retry = await request(`${API}/graphql`, { method: 'POST', body: JSON.stringify({ query, variables }) }, own);
+      payload = (await retry.json()) as GraphqlPayload<T>;
+    }
+  }
   if (payload.errors?.length) {
     const denied = payload.errors.some((e) => e.type === 'INSUFFICIENT_SCOPES' || e.type === 'FORBIDDEN');
     throw new GithubError(payload.errors.map((e) => e.message).join(', '), denied ? 403 : 400);
   }
   if (!payload.data) throw new GithubError('GraphQL returned no data.', 500);
   return payload.data;
+}
+
+const NOT_FOR_APPS = /Resource not accessible by integration/i;
+
+// GH_TOKEN when it is the signed-in person's own token, else null. Only the
+// environment counts, never the gh CLI: a server has none, and a test must
+// not pick up a developer's login by accident. The token's login is read once.
+async function ownTokenFor(login: string): Promise<string | null> {
+  const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
+  if (!token) return null;
+  if (state.ownerLogin === undefined) {
+    try {
+      const res = await request(`${API}/user`, { method: 'GET' }, state.transport ? null : token);
+      state.ownerLogin = ((await res.json()) as { login?: string }).login ?? null;
+    } catch {
+      state.ownerLogin = null;
+    }
+  }
+  return state.ownerLogin && state.ownerLogin.toLowerCase() === login.toLowerCase() ? token : null;
 }
 
 export function describeError(err: unknown): string {
