@@ -13,6 +13,7 @@ import { db } from '#db/connection.server.ts';
 import { projects } from '#db/schema.server.ts';
 import type { ActionResult } from '@webjsdev/server';
 import { currentUser } from '#modules/auth/queries/current-user.server.ts';
+import { signedOut } from '#modules/auth/session.server.ts';
 import { describeError } from '#modules/github/client.server.ts';
 import { createBoard, githubAppConfigured, installationRepos } from '#modules/github/app.server.ts';
 import { resolveBoard } from '#modules/github/projects-v2.server.ts';
@@ -41,6 +42,9 @@ export const validate = (input: unknown) => {
 
 export async function connectProject(input: ConnectProjectInput): Promise<ActionResult<Project>> {
   const user = await currentUser();
+  // Every project has an owner, whatever the GitHub configuration: the form
+  // path is behind the dashboard gate, and this closes the RPC path too.
+  if (!user) return signedOut();
   const withApp = githubAppConfigured();
   if (withApp && !user) return { success: false, error: 'Sign in with GitHub to connect a repository.', status: 401 };
 
@@ -62,11 +66,11 @@ export async function connectProject(input: ConnectProjectInput): Promise<Action
     installationId = input.installationId;
   }
 
-  const existing = await db.query.projects.findFirst({ where: user ? { userId: user.id, githubRepo } : { githubRepo } });
+  const existing = await db.query.projects.findFirst({ where: { userId: user.id, githubRepo } });
   if (existing) return { success: true, data: existing, redirect: `/dashboard/projects/${existing.id}` };
   const create = input.createBoard && Boolean(user);
   const [row] = await db.insert(projects).values({
-    name: input.name, githubRepo, defaultBranch, installationId, userId: user?.id ?? null, githubProjectNumber: create ? null : input.githubProjectNumber,
+    name: input.name, githubRepo, defaultBranch, installationId, userId: user.id, githubProjectNumber: create ? null : input.githubProjectNumber,
   }).returning();
   let project = row;
   try {
