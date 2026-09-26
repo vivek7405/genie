@@ -120,7 +120,7 @@ export default function Internals() {
       id: 'plain',
       layout: 'split',
       heading: 'The whole idea, before any of the detail',
-      lede: 'The rest of this page is written for somebody who already knows what a state machine and a microVM are. This section is not. Read it and you can follow every figure below.',
+      lede: 'The rest of this page is written for somebody who already knows what a state machine is and what a machine on Pilots is. This section is not. Read it and you can follow every figure below.',
       body: html`
         <div class="grid gap-10 lg:grid-cols-[1.05fr_0.95fr]">
           <div>
@@ -223,7 +223,7 @@ export default function Internals() {
       id: 'machine',
       layout: 'split',
       heading: 'Forked from a checkpoint, never booted',
-      lede: 'A task machine is a Pilots microVM restored from a checkpoint of a base machine that already has everything installed, which is why it is ready in the time a fork takes rather than the time an install takes.',
+      lede: 'A task machine is a Pilots machine restored from a checkpoint of a base machine that already has everything installed, which is why it is ready in the time a fork takes rather than the time an install takes.',
       body: html`
         ${forkFigure()}
         <div class="mt-12 grid gap-10 lg:grid-cols-2">
@@ -317,7 +317,7 @@ export default function Internals() {
       id: 'redeploy',
       layout: 'split',
       heading: 'A redeploy is a power cut',
-      lede: 'On Pilots a volume-backed service is one replica, and a redeploy stops its microVM from the host with no signal delivered inside. So the recovery that matters happens at the next boot, and the build that was running is not lost, because it was never running in Genie’s process.',
+      lede: 'On Pilots a volume-backed service is one replica, and a redeploy stops its machine from the host with no signal delivered inside. So the recovery that matters happens at the next boot, and the build that was running is not lost, because it was never running in Genie’s process.',
       body: html`
         ${redeployFigure()}
         <div class="mt-12 grid gap-10 lg:grid-cols-2">

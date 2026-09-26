@@ -252,7 +252,7 @@ export function verdictFigure() {
 export function redeployFigure() {
   return figure({
     label:
-      'A redeploy stops Genie’s microVM from the host, so no signal reaches the guest. The agent on the task machine keeps running. The new replica releases every claim at boot and its first tick re-claims the task on the same machine, branch and pull request.',
+      'A redeploy stops Genie’s machine from the host, so no signal reaches the guest. The agent on the task machine keeps running. The new replica releases every claim at boot and its first tick re-claims the task on the same machine, branch and pull request.',
     viewBox: '0 0 920 215',
     minW: 'min-w-[820px]',
     body: html`
