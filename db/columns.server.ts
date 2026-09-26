@@ -1,9 +1,9 @@
-import { sqliteTableCreator, integer, text, real, blob, index as _index } from 'drizzle-orm/sqlite-core';
+import { sqliteTableCreator, integer, text, real, blob, uniqueIndex, index as _index } from 'drizzle-orm/sqlite-core';
 import type { SQLiteColumn } from 'drizzle-orm/sqlite-core';
 import { getTableName, type Table } from 'drizzle-orm';
 
 // Raw drizzle builders, re-exported so the schema reads like drizzle.
-export { text, integer, real, blob };
+export { text, integer, real, blob, uniqueIndex };
 
 // Casing factory: column keys map to snake_case SQL names.
 export const table = sqliteTableCreator((name) => name, 'snake_case');
