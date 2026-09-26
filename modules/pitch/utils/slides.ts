@@ -38,9 +38,9 @@ export const SLIDES: readonly Slide[] = [
   {
     id: 'ai',
     kicker: '3 · How AI is used',
-    title: 'Claude Code, headless, inside a throwaway microVM per task',
+    title: 'Claude Code, headless, inside a throwaway machine per task',
     points: [
-      'Each task gets its own pilots sandbox (Firecracker microVM) restored from a base checkpoint with git, gh and Claude Code preinstalled.',
+      'Each task gets its own Pilots sandbox, a machine restored from a base checkpoint with git, gh and Claude Code preinstalled.',
       'Planning: one short, timeboxed run that reads the issue and the repo’s own AGENTS.md and writes a compact plan, posted to the issue.',
       'Building: the agent implements the plan on a branch, runs the project’s own checks and tests, commits per logical unit and opens the PR.',
       'Nothing is scripted or canned: the plan, the code and the PR are produced by the model against the real repository.',
