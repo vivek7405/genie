@@ -91,13 +91,13 @@ export default function Home() {
           <div>
             <h1 class="m-0 text-[2.4rem] font-bold leading-[1.02] tracking-tight sm:text-[3.2rem]">Write the task. Review the pull request.</h1>
             <p class=${cn(PROSE, 'mt-6 text-heading')}>
-              genie is an async project manager that ships. Connect a repository, put a card in Todo, and come back to a branch, a pull request and a live preview waiting for your verdict.
+              Genie is an async project manager that ships. Connect a repository, put a card in Todo, and come back to a branch, a pull request and a live preview waiting for your verdict.
             </p>
             <div class="mt-8 flex flex-wrap gap-3">
               <a class=${cn(buttonClass(), 'no-underline')} href="/dashboard" data-no-router>Open the dashboard</a>
               <a class=${cn(buttonClass({ variant: 'outline' }), 'no-underline')} href="#loop">How it works</a>
             </div>
-            <p class="mt-6 text-meta text-muted-foreground">Open source. Built with WebJs, runs its sandboxes on pilots.</p>
+            <p class="mt-6 text-meta text-muted-foreground">Open source. Built with WebJs, runs its sandboxes on Pilots.</p>
           </div>
           <div class="lg:pl-4">${heroFeed()}</div>
         </div>
@@ -107,7 +107,7 @@ export default function Home() {
     ${section({
       id: 'loop',
       heading: 'Four steps, and you only do two of them',
-      lede: 'A task moves across the board on its own. You write it and you judge it; genie plans it, builds it and hands it back as a pull request. Nothing in the middle waits for a person.',
+      lede: 'A task moves across the board on its own. You write it and you judge it; Genie plans it, builds it and hands it back as a pull request. Nothing in the middle waits for a person.',
       body: html`
         <ol class="m-0 grid list-none gap-4 p-0 md:grid-cols-2 xl:grid-cols-4">
           ${STEPS.map((s) => html`
@@ -125,7 +125,7 @@ export default function Home() {
           ${COLUMNS.map((c) => html`
             <div class="rounded-md bg-muted/60 px-3 py-2.5">
               <div class=${cn(VOICE, 'text-foreground')}>${c.label}</div>
-              <div class="mt-1 text-meta text-muted-foreground">${c.owner === 'you' ? 'yours' : 'genie owns it'}</div>
+              <div class="mt-1 text-meta text-muted-foreground">${c.owner === 'you' ? 'yours' : 'Genie owns it'}</div>
             </div>
           `)}
         </div>
@@ -136,19 +136,19 @@ export default function Home() {
       id: 'sandbox',
       layout: 'split',
       heading: 'Every task gets its own computer',
-      lede: 'The agent never runs on your machine or on genie’s. Each task forks a microVM from a base image that already has git, gh and Claude Code on it, does its work there, and leaves nothing behind.',
+      lede: 'The agent never runs on your machine or on Genie’s. Each task forks a microVM from a base image that already has git, gh and Claude Code on it, does its work there, and leaves nothing behind.',
       body: html`
         <div class="grid gap-5 md:grid-cols-3">
           <div class=${cn(cardClass(), 'p-5')}><p class="m-0 mb-1.5 font-semibold">Forked, not booted</p><p class="m-0 text-meta text-muted-foreground">A sandbox is restored from a checkpoint, so it is answering before the plan is written. Idle ones suspend and cost nothing.</p></div>
           <div class=${cn(cardClass(), 'p-5')}><p class="m-0 mb-1.5 font-semibold">Credentials never touch disk</p><p class="m-0 text-meta text-muted-foreground">The Claude and GitHub tokens ride as the environment of one process inside the machine. A snapshot or a fork carries nothing.</p></div>
-          <div class=${cn(cardClass(), 'p-5')}><p class="m-0 mb-1.5 font-semibold">The preview is the platform’s</p><p class="m-0 text-meta text-muted-foreground">A connected repository gets a preview URL on every pull request and a deploy on merge from pilots, so genie never deploys anything itself.</p></div>
+          <div class=${cn(cardClass(), 'p-5')}><p class="m-0 mb-1.5 font-semibold">The preview is the platform’s</p><p class="m-0 text-meta text-muted-foreground">A connected repository gets a preview URL on every pull request and a deploy on merge from Pilots, so Genie never deploys anything itself.</p></div>
         </div>`,
     })}
 
     ${section({
       id: 'stack',
       heading: 'It speaks your repository’s language',
-      lede: 'A task on an existing app follows that app: its framework, its package manager, its checks, its conventions file. genie reads AGENTS.md before it reads anything else.',
+      lede: 'A task on an existing app follows that app: its framework, its package manager, its checks, its conventions file. Genie reads AGENTS.md before it reads anything else.',
       body: html`
         <div class="grid gap-5 md:grid-cols-2">
           <div class=${cn(cardClass(), 'p-5')}>
@@ -166,7 +166,7 @@ export default function Home() {
       id: 'built',
       layout: 'split',
       heading: 'Two pieces underneath',
-      lede: 'genie is a small WebJs app with a SQLite queue and a worker. The heavy lifting is done by the framework it is built with and the platform it runs on.',
+      lede: 'Genie is a WebJs app with a SQLite queue and a worker. The heavy lifting is done by WebJs, the framework it is built with, and Pilots, the platform it runs on. Both come from the team behind Genie.',
       body: html`
         <div class="grid gap-5 md:grid-cols-2">
           <a href="https://webjs.dev" target="_blank" rel="noopener" class=${cn(cardClass(), 'block p-5 no-underline transition-colors hover:border-border-strong')}>
@@ -174,7 +174,7 @@ export default function Home() {
             <p class="m-0 mt-2 text-meta text-muted-foreground">The buildless, server-first framework. Pages are HTML, islands hydrate where they must, frames and WebSockets make the board live with almost no client code.</p>
           </a>
           <a href="https://pilots.run" target="_blank" rel="noopener" class=${cn(cardClass(), 'block p-5 no-underline transition-colors hover:border-border-strong')}>
-            <span class="font-mono text-heading font-semibold text-foreground">pilots</span>
+            <span class="text-heading font-semibold text-foreground">Pilots</span>
             <p class="m-0 mt-2 text-meta text-muted-foreground">Sandboxes and production services on one primitive. A machine per task, a checkpoint to fork from, previews on pull requests and a deploy on merge.</p>
           </a>
         </div>`,

@@ -6,9 +6,9 @@ import { shellStyles, themeScript } from '#lib/design/shell.ts';
 import { cn } from '#lib/utils/cn.ts';
 import '#components/theme-toggle.ts';
 
-const TITLE = 'genie - write the task, review the pull request';
+const TITLE = 'Genie - write the task, review the pull request';
 const DESCRIPTION =
-  'An async project manager that ships. Connect a GitHub repository, write a task, and genie plans it, builds it on a branch in its own sandbox, and opens a pull request with a live preview for you to approve.';
+  'An async project manager that ships. Connect a GitHub repository, write a task, and Genie plans it, builds it on a branch in its own sandbox, and opens a pull request with a live preview for you to approve.';
 
 export function generateMetadata(ctx: { url: string }) {
   const { origin, pathname } = new URL(ctx.url);
@@ -64,7 +64,7 @@ export default function SiteLayout({ children }: LayoutProps) {
           <a href="/brand" class="no-underline hover:text-foreground">Brand</a>
           <a href="https://github.com/vivek7405/genie" target="_blank" rel="noopener" class="no-underline hover:text-foreground">GitHub</a>
           <a href="https://webjs.dev" target="_blank" rel="noopener" class="no-underline hover:text-foreground">Built with WebJs</a>
-          <a href="https://pilots.run" target="_blank" rel="noopener" class="no-underline hover:text-foreground">Runs on pilots</a>
+          <a href="https://pilots.run" target="_blank" rel="noopener" class="no-underline hover:text-foreground">Runs on Pilots</a>
         </nav>
       </div>
     </footer>

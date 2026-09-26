@@ -11,9 +11,9 @@ export interface Column {
 }
 
 export const COLUMNS: readonly Column[] = [
-  { status: 'todo', label: 'Todo', hint: 'Waiting for genie to pick it up' },
-  { status: 'planning', label: 'Plan', hint: 'genie is writing the plan' },
-  { status: 'in_progress', label: 'In progress', hint: 'genie is building and self-reviewing on a branch' },
+  { status: 'todo', label: 'Todo', hint: 'Waiting for Genie to pick it up' },
+  { status: 'planning', label: 'Plan', hint: 'Genie is writing the plan' },
+  { status: 'in_progress', label: 'In progress', hint: 'Genie is building and self-reviewing on a branch' },
   { status: 'ready_for_review', label: 'Review', hint: 'Implemented and self-reviewed; a PR and a preview wait for you' },
   { status: 'done', label: 'Done', hint: 'Merged and shipped' },
 ];

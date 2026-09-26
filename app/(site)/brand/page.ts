@@ -26,10 +26,10 @@ const FILES = [
 ];
 
 const NAME_FORMS = [
-  { form: 'genie', ok: true, note: 'Everywhere: in a sentence, a heading, beside the mark, as a package name. It is written lowercase like a command.' },
-  { form: 'Genie', ok: false, note: 'Not even at the start of a sentence. Rephrase so the name is not first.' },
+  { form: 'Genie', ok: true, note: 'In a sentence, a heading or a title. It is a product name and takes a capital like any other.' },
+  { form: 'genie', ok: true, note: 'Only as the wordmark beside the mark, and wherever it is typed: the package, the repository, a label, a command.' },
   { form: 'GENIE', ok: false, note: 'It is a word, never an acronym.' },
-  { form: 'the genie', ok: false, note: 'No article. genie plans, genie builds, genie ships.' },
+  { form: 'the genie', ok: false, note: 'No article. Genie plans, Genie builds, Genie ships.' },
 ];
 
 const TYPE_STEPS: { cls: string; name: string; use: string }[] = [
@@ -117,7 +117,7 @@ export default function BrandPage() {
     <div class="mx-auto max-w-6xl px-4 py-10 sm:px-6">
     ${pageHeader({
       title: 'The mark, the colours and the name',
-      lede: 'Everything needed to show genie somewhere other than this app: the mark as files, the rules that keep it legible, the palette, the type, and how the name is written.',
+      lede: 'Everything needed to show Genie somewhere other than this app: the mark as files, the rules that keep it legible, the palette, the type, and how the name is written.',
       actions: html`
         <a class=${cn(buttonClass({ size: 'sm' }), 'no-underline')} href=${asset('/public/brand/genie-mark-glow.svg')} download>Download the mark</a>
         <a class=${cn(buttonClass({ variant: 'outline', size: 'sm' }), 'no-underline')} href="#usage">Usage</a>`,
@@ -217,7 +217,7 @@ export default function BrandPage() {
               <span class=${cn(badgeClass({ variant: 'outline' }), fieldLabelClass(), 'text-foreground')}>Todo</span>
               <span class="inline-flex items-center gap-1.5 font-mono text-label uppercase tracking-[0.12em] text-muted-foreground">${liveDot(true)} live</span>
             </div>
-            <p class="m-0 text-meta text-muted-foreground">A badge speaks in the label voice. The glow fills the one state that needs a person, and pulses where genie is working.</p>
+            <p class="m-0 text-meta text-muted-foreground">A badge speaks in the label voice. The glow fills the one state that needs a person, and pulses where Genie is working.</p>
           </div>
           <div class=${cn(cardClass(), 'grid gap-4 p-5')}>
             <span class=${fieldLabelClass()}>Panel</span>
@@ -237,7 +237,7 @@ export default function BrandPage() {
     ${chapter({
       id: 'name',
       heading: 'Writing the name',
-      lede: 'Beside the mark the name is set in the monospace at semibold, lowercase, as in the header below. In a sentence it is still genie, lowercase, like a command.',
+      lede: 'Beside the mark the name is set in the monospace at semibold, lowercase, as in the header below. In a sentence it is Genie, with a capital and in no special type.',
       body: html`
         <div class="flex flex-col gap-8">
           ${headerMock()}
@@ -258,8 +258,8 @@ export default function BrandPage() {
       heading: 'Using the mark',
       body: html`
         <div class="flex flex-col gap-4">
-          <p class=${cn(proseClass(), 'm-0')}>Use the mark and the name freely to refer to genie: an article, a talk, a comparison, documentation for an integration, a note that something was built with it.</p>
-          <p class=${cn(proseClass(), 'm-0')}>Ask first before using the name or the mark as part of another product's name or logo, on merchandise, or in any way that suggests genie endorses something.</p>
+          <p class=${cn(proseClass(), 'm-0')}>Use the mark and the name freely to refer to Genie: an article, a talk, a comparison, documentation for an integration, a note that something was built with it.</p>
+          <p class=${cn(proseClass(), 'm-0')}>Ask first before using the name or the mark as part of another product's name or logo, on merchandise, or in any way that suggests Genie endorses something.</p>
         </div>`,
     })}
     </div>

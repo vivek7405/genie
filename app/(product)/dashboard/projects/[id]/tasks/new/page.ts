@@ -24,7 +24,7 @@ export default async function NewTask({ params, actionData }: NewTaskProps) {
     ${pageHeader({
       above: backLink(`/dashboard/projects/${project.id}`, project.name),
       title: 'New task',
-      lede: 'Describe the change the way you would brief a colleague. genie plans it, builds it on a branch and opens the pull request.',
+      lede: 'Describe the change the way you would brief a colleague. Genie plans it, builds it on a branch and opens the pull request.',
     })}
     <form action=${createTask} class=${cn(cardClass(), cardBody(), 'grid max-w-2xl gap-5')}>
       <input type="hidden" name="projectId" value=${project.id}>

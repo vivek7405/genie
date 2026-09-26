@@ -14,7 +14,7 @@ export default async function Home() {
   return html`
     ${pageHeader({
       title: 'Projects',
-      lede: 'A project is a GitHub repository genie builds on. Open one to see its board, or connect a new one.',
+      lede: 'A project is a GitHub repository Genie builds on. Open one to see its board, or connect a new one.',
       actions: html`<a href="/dashboard/projects/new" class=${cn(buttonClass({ size: 'sm' }), 'no-underline')}>Connect a repo</a>`,
     })}
     ${rows.length === 0
@@ -30,7 +30,7 @@ export default async function Home() {
                   <span class="shrink-0 font-mono text-label font-normal uppercase tracking-[0.12em] text-muted-foreground">${project.githubRepo}</span>
                 </h2>
                 <p class="m-0 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-meta text-muted-foreground">
-                  ${liveDot(busy > 0, busy > 0 ? 'genie is working' : 'idle')}
+                  ${liveDot(busy > 0, busy > 0 ? 'Genie is working' : 'idle')}
                   ${total === 0 ? 'no tasks yet' : html`${counts.ready_for_review > 0 ? html`<span class="text-foreground">${counts.ready_for_review} in review</span>` : ''}
                     ${busy > 0 ? html`<span>${busy} in flight</span>` : ''}
                     <span>${counts.todo} todo</span><span>${counts.done} done</span>`}

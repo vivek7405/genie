@@ -21,7 +21,7 @@ export default function NewProject({ actionData }: NewProjectProps) {
     ${pageHeader({
       above: backLink('/', 'Projects'),
       title: 'Connect a repository',
-      lede: 'Point genie at a GitHub repository. Tasks you create for it are planned, built on a branch and shipped as a pull request with a preview.',
+      lede: 'Point Genie at a GitHub repository. Tasks you create for it are planned, built on a branch and shipped as a pull request with a preview.',
     })}
     <form action=${connectProject} class=${cn(cardClass(), cardBody(), 'grid max-w-xl gap-5')}>
       ${field({

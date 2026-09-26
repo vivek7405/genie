@@ -72,7 +72,7 @@ export default async function TaskCard({ params, actionData }: CardProps) {
             </section>` : ''}
 
           <section>
-            ${sectionHeading('Activity', 'Every step genie took on this card, newest last.')}
+            ${sectionHeading('Activity', 'Every step Genie took on this card, newest last.')}
             ${panel(events.length === 0 ? html`<p class="m-0 text-meta text-muted-foreground">Nothing yet. The worker writes here as it goes.</p>` : html`
               <ol class="m-0 grid list-none gap-1.5 p-0 font-mono text-meta">
                 ${events.map((e) => html`
@@ -87,7 +87,7 @@ export default async function TaskCard({ params, actionData }: CardProps) {
 
         <aside class="grid content-start gap-8">
           <section>
-            ${sectionHeading('Deliverables', 'What genie hands back when the card is ready.')}
+            ${sectionHeading('Deliverables', 'What Genie hands back when the card is ready.')}
             ${panel(facts([
               { label: 'Branch', value: task.branch ? html`<span class="font-mono text-meta">${task.branch}</span>` : pending },
               { label: 'Pull request', value: task.prUrl ? ext(task.prUrl, `#${task.prNumber}`) : pending },
@@ -124,7 +124,7 @@ export default async function TaskCard({ params, actionData }: CardProps) {
 
           ${task.status === 'done' ? html`
             <section>
-              ${panel(html`<p class="m-0 text-body"><span class=${fieldLabelClass()}>Merged</span><br>The pull request is merged. Once the repository is connected to pilots, the default branch deploys on its own.</p>`)}
+              ${panel(html`<p class="m-0 text-body"><span class=${fieldLabelClass()}>Merged</span><br>The pull request is merged. Once the repository is connected to Pilots, the default branch deploys on its own.</p>`)}
             </section>` : ''}
         </aside>
       </div>
