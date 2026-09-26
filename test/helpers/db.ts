@@ -11,6 +11,9 @@ const dir = mkdtempSync(join(tmpdir(), 'genie-test-'));
 process.env.DATABASE_URL = `file:${join(dir, 'test.db')}`;
 process.env.GENIE_WORKER = '0';
 process.env.GENIE_SYNC = '0';
+// The auth module refuses to boot without a signing secret; tests mint their
+// own session cookies with this one (test/helpers/auth.ts).
+process.env.AUTH_SECRET ||= 'genie-test-secret-at-least-32-characters-long';
 
 export const appDir = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
