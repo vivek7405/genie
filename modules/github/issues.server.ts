@@ -2,7 +2,7 @@
 // opt-in: only labeled issues are imported or automated, and issues genie
 // creates carry it from the start.
 import type { Project } from '#modules/projects/types.ts';
-import { ghApi, GithubError } from './client.server.ts';
+import { ghApi, GithubError, viaInstallation } from './client.server.ts';
 
 export const GENIE_LABEL = 'genie';
 const LABEL_COLOR = '7c3aed';
@@ -19,8 +19,8 @@ const toComment = (c: RestComment): IssueComment => ({ id: c.id, body: c.body ??
 
 // Markers: every comment genie posts starts with one, and every issue genie
 // creates ends with taskMarker(). They are how genie tells its own writes from
-// a human's, since both come from the same token. The `genie-<kind>` form is
-// shared with the pipeline stages (`<!-- genie-plan -->` in M4). The `genie:`
+// a human's, since both may come from the same token (the operator's, when no
+// GitHub App is configured). The `genie-<kind>` form is shared with the pipeline stages (`<!-- genie-plan -->` in M4). The `genie:`
 // spelling is recognised as well.
 const GENIE_MARKER = /^\s*<!--\s*genie[-:]/;
 export const commentMarker = (kind: string): string => `<!-- genie-${kind} -->`;
@@ -32,38 +32,38 @@ const labeled = new Set<string>();
 async function ensureGenieLabel(project: Project): Promise<void> {
   if (labeled.has(project.githubRepo)) return;
   try {
-    await ghApi<unknown>(`repos/${project.githubRepo}/labels/${GENIE_LABEL}`);
+    await ghApi<unknown>(`repos/${project.githubRepo}/labels/${GENIE_LABEL}`, { auth: viaInstallation(project) });
   } catch (err) {
     if (!(err instanceof GithubError) || err.status !== 404) throw err;
-    await ghApi<unknown>(`repos/${project.githubRepo}/labels`, { method: 'POST', body: { name: GENIE_LABEL, color: LABEL_COLOR, description: LABEL_DESCRIPTION } });
+    await ghApi<unknown>(`repos/${project.githubRepo}/labels`, { method: 'POST', body: { name: GENIE_LABEL, color: LABEL_COLOR, description: LABEL_DESCRIPTION }, auth: viaInstallation(project) });
   }
   labeled.add(project.githubRepo);
 }
 
 export async function createIssue(project: Project, input: { title: string; body: string }): Promise<Issue> {
   await ensureGenieLabel(project);
-  const created = await ghApi<RestIssue>(`repos/${project.githubRepo}/issues`, { method: 'POST', body: { title: input.title, body: input.body, labels: [GENIE_LABEL] } });
+  const created = await ghApi<RestIssue>(`repos/${project.githubRepo}/issues`, { method: 'POST', body: { title: input.title, body: input.body, labels: [GENIE_LABEL] }, auth: viaInstallation(project) });
   return toIssue(created);
 }
 
 export async function commentOnIssue(project: Project, issueNumber: number, body: string): Promise<{ id: number; htmlUrl: string }> {
-  const c = await ghApi<RestComment>(`repos/${project.githubRepo}/issues/${issueNumber}/comments`, { method: 'POST', body: { body } });
+  const c = await ghApi<RestComment>(`repos/${project.githubRepo}/issues/${issueNumber}/comments`, { method: 'POST', body: { body }, auth: viaInstallation(project) });
   return { id: c.id, htmlUrl: c.html_url };
 }
 
 export async function readIssue(project: Project, issueNumber: number): Promise<Issue> {
-  return toIssue(await ghApi<RestIssue>(`repos/${project.githubRepo}/issues/${issueNumber}`));
+  return toIssue(await ghApi<RestIssue>(`repos/${project.githubRepo}/issues/${issueNumber}`, { auth: viaInstallation(project) }));
 }
 
 // Open issues carrying the genie label. The endpoint returns pull requests
 // too (gh-budget trap 1), so those are dropped here.
 export async function listGenieIssues(project: Project): Promise<Issue[]> {
-  const rows = await ghApi<RestIssue[]>(`repos/${project.githubRepo}/issues?labels=${GENIE_LABEL}&state=open&per_page=100`);
+  const rows = await ghApi<RestIssue[]>(`repos/${project.githubRepo}/issues?labels=${GENIE_LABEL}&state=open&per_page=100`, { auth: viaInstallation(project) });
   return rows.filter((r) => !r.pull_request).map(toIssue);
 }
 
 // Oldest first, as GitHub returns them. PR comments live on the same route.
 export async function listComments(project: Project, issueNumber: number): Promise<IssueComment[]> {
-  const rows = await ghApi<RestComment[]>(`repos/${project.githubRepo}/issues/${issueNumber}/comments?per_page=100`);
+  const rows = await ghApi<RestComment[]>(`repos/${project.githubRepo}/issues/${issueNumber}/comments?per_page=100`, { auth: viaInstallation(project) });
   return rows.map(toComment);
 }

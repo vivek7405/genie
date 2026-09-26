@@ -52,7 +52,7 @@ Then:
 ```sh
 git clone git@github.com:vivek7405/genie.git
 cd genie
-cp .env.example .env      # fill PILOT_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, GH_TOKEN
+cp .env.example .env      # fill PILOT_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, and GH_TOKEN or the GitHub App keys
 npm install
 npm run dev
 ```
@@ -178,7 +178,8 @@ create-webjs and Genie does not use them.
 | `PILOT_API_KEY` | Pilots API key for creating and driving task machines. |
 | `PILOT_API_URL` | Optional. Points at a self-hosted Pilots fleet. |
 | `CLAUDE_CODE_OAUTH_TOKEN` | Subscription token from `claude setup-token`, passed to Claude Code inside the machine. |
-| `GH_TOKEN` | GitHub token for the repo and its Project board. Falls back to `gh auth token` when unset. |
+| `GITHUB_APP_ID`, `GITHUB_APP_SLUG`, `GITHUB_APP_PRIVATE_KEY` | The GitHub App Genie acts as: installation tokens for every repository call and every task machine, the install link on the connect page. `AUTH_GITHUB_ID` and `AUTH_GITHUB_SECRET` are the same App's OAuth client. |
+| `GH_TOKEN` | The fallback without an App: one operator token for every repo and board. Falls back to `gh auth token` when unset. Also serves a project connected before the App. |
 | `GENIE_WORKER` | `0` boots the UI without the pipeline worker. Tests do. |
 | `GENIE_CONCURRENCY` | How many tasks the worker drives at once. Keep 1 on a subscription token. |
 | `GENIE_TICK_MS` | Worker poll interval. |
@@ -194,9 +195,10 @@ create-webjs and Genie does not use them.
 | `GENIE_STUB_STEP_MS` | How long each stub stage pretends to work. Only while the pipeline is stubbed. |
 | `AUTH_SECRET`, `AUTH_*_ID`, `AUTH_*_SECRET`, `REDIS_URL` | Scaffold defaults, unused by Genie. |
 
-The Pilots secrets `pilot_api_key`, `claude_code_oauth_token` and
-`github_token` map onto `PILOT_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN` and
-`GH_TOKEN`.
+The Pilots secrets `pilot_api_key`, `claude_code_oauth_token`,
+`github_app_id`, `github_app_slug`, `github_app_private_key` and
+`github_token` map onto `PILOT_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`,
+`GITHUB_APP_ID`, `GITHUB_APP_SLUG`, `GITHUB_APP_PRIVATE_KEY` and `GH_TOKEN`.
 
 ## Operating Genie
 

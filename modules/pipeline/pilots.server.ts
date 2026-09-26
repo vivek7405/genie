@@ -11,21 +11,24 @@ import { NotFoundError, PilotsClient, QuotaExceededError, type Machine } from '@
 import { basename, dirname } from 'node:path/posix';
 import { randomBytes } from 'node:crypto';
 import type { Project, Task } from '#db/schema.server.ts';
+import { activeInstallationTokens } from '#modules/github/client.server.ts';
 import { parseTar } from './tar.server.ts';
 
 // The environment variables whose values must never appear in a recorded line.
 const SECRET_ENV_KEYS = ['CLAUDE_CODE_OAUTH_TOKEN', 'GH_TOKEN', 'PILOT_API_KEY'] as const;
 
-// Replaces every known secret value (the three env secrets plus `extra`, the
-// values of an exec's env) with [redacted]. Longest first, so a value that
-// embeds another (the insteadOf URL carries the token) is blanked whole before
-// the shorter one can leave a fragment behind. Plain string replace, no regex.
+// Replaces every known secret value (the three env secrets, every installation
+// token minted for a GitHub App, plus `extra`, the values of an exec's env)
+// with [redacted]. Longest first, so a value that embeds another (the
+// insteadOf URL carries the token) is blanked whole before the shorter one
+// can leave a fragment behind. Plain string replace, no regex.
 export function redact(text: string, extra: readonly string[] = []): string {
   const values = new Set<string>();
   for (const key of SECRET_ENV_KEYS) {
     const v = process.env[key];
     if (v) values.add(v);
   }
+  for (const v of activeInstallationTokens()) values.add(v);
   for (const v of extra) if (v) values.add(v);
   if (values.size === 0 || !text) return text;
   let out = text;

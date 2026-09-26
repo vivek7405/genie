@@ -60,8 +60,11 @@ forking. It is slower and exists for debugging the base image.
 
 Three credentials are involved: `PILOT_API_KEY` (this server talks to the
 fleet with it, and it never enters a machine), `CLAUDE_CODE_OAUTH_TOKEN` (a
-subscription token from `claude setup-token`), and `GH_TOKEN` (a fine-grained
-GitHub token for the connected repos).
+subscription token from `claude setup-token`), and a GitHub token for the
+connected repo. With the GitHub App configured that token is the project's
+installation token, minted from the App's private key (which never enters a
+machine either) and good for an hour; without an App it is the operator's
+`GH_TOKEN`.
 
 The Claude and GitHub tokens reach a machine only as the `env` of one
 buffered exec, the way `pilot claude` forwards a login. The launcher installs
@@ -76,7 +79,8 @@ machine's whole life).
 Everything that comes back is redacted before it is recorded: `execLong`
 blanks the values of the env it sent from stdout and stderr, and
 `recordEvent` and `failStage` pass every line through `redact()`, which
-replaces the known token values with `[redacted]`. git prints a rewritten
+replaces the known token values, every installation token minted so far
+included, with `[redacted]`. git prints a rewritten
 remote URL on error and gh echoes a token in a 401, which is exactly the text
 that ends up in a failed stage's message.
 

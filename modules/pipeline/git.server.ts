@@ -1,6 +1,8 @@
 // Server-only: git inside a task machine. The GitHub token travels only as
 // the env of one buffered exec, as GH_TOKEN (for gh) and as a git insteadOf
 // rewrite (for clone and push), so nothing on the machine's disk carries it.
+// The token is the project's installation token when the stage passes one
+// (repoToken in modules/github/app.server.ts), else the operator's GH_TOKEN.
 import type { Project } from '#db/schema.server.ts';
 import { execLong, shellQuote } from './pilots.server.ts';
 
@@ -18,14 +20,21 @@ export function gitEnv(token: string): Record<string, string> {
   };
 }
 
-function githubToken(): string {
-  const token = process.env.GH_TOKEN;
-  if (!token) throw new Error('GH_TOKEN is not set');
-  return token;
+// `undefined` means the caller left the choice here (the operator's env);
+// `null` means the stage resolved no token at all.
+function githubToken(token: string | null | undefined): string {
+  const resolved = token === undefined ? process.env.GH_TOKEN : token;
+  if (!resolved) throw new Error('GH_TOKEN is not set. Install the Genie GitHub App on the repository, or set GH_TOKEN.');
+  return resolved;
 }
 
 export interface CloneOptions {
   dir?: string;
+  token?: string | null;
+}
+
+export interface PushOptions {
+  token?: string | null;
 }
 
 export const DEFAULT_APP_DIR = '/home/pilot/app';
@@ -39,7 +48,7 @@ export async function cloneRepo(
   project: Pick<Project, 'githubRepo'> & Partial<Pick<Project, 'defaultBranch'>>,
   opts: CloneOptions = {},
 ): Promise<void> {
-  const token = githubToken();
+  const token = githubToken(opts.token);
   const dir = shellQuote(opts.dir ?? DEFAULT_APP_DIR);
   const branch = shellQuote(project.defaultBranch ?? 'main');
   const url = shellQuote(`https://github.com/${project.githubRepo}.git`);
@@ -50,8 +59,8 @@ export async function cloneRepo(
   if (res.exitCode !== 0) throw new Error(`git clone failed: ${res.stderr.trim()}`);
 }
 
-export async function pushBranch(machineId: string, dir: string, branch: string): Promise<void> {
-  const token = githubToken();
+export async function pushBranch(machineId: string, dir: string, branch: string, opts: PushOptions = {}): Promise<void> {
+  const token = githubToken(opts.token);
   const res = await execLong(machineId, `git -C ${shellQuote(dir)} push -u origin ${shellQuote(branch)}`, {
     env: gitEnv(token),
     timeoutMs: 300_000,

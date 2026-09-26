@@ -551,3 +551,58 @@ test('runStage returns null for a status the system does not own', async () => {
   assert.equal(await runStage(task), null);
   assert.equal(fake.execs.length, 0);
 });
+
+// The token a machine acts with: the project's, resolved through deps per
+// exec, riding only as env.
+
+test('every clone, push, gh exec and Claude run acts with the project token, and no command text carries it', async () => {
+  const TOKEN = 'ghs_fake_stage_token';
+  fake.onRepoToken(() => TOKEN);
+  fake.onCommand('git diff --quiet HEAD', { stdout: 'committed\n' });
+
+  const todo = await insertTask();
+  assert.equal(await runStage(todo), 'planning');
+  assert.deepEqual(fake.cloneTokens, [TOKEN]);
+
+  const planning = await insertTask({ status: 'planning', machineId: 'm1', githubIssueNumber: 5 });
+  assert.equal(await runStage(planning), 'in_progress');
+  assert.equal(fake.claudeRuns.at(-1)!.githubToken, TOKEN);
+
+  const building = await inProgress();
+  assert.equal(await runStage(building), 'ready_for_review');
+  const ghExecs = fake.execs.filter((e) => e.cmd.startsWith('gh pr list'));
+  assert.equal(ghExecs.length, 2);
+  for (const e of ghExecs) {
+    assert.equal(e.opts.env?.GH_TOKEN, TOKEN);
+    assert.ok(e.opts.env?.GIT_CONFIG_KEY_0?.includes(`x-access-token:${TOKEN}@github.com`));
+  }
+  assert.deepEqual(fake.claudeRuns.slice(1).map((r) => r.githubToken), [TOKEN, TOKEN], 'the build run and the self-review');
+  assert.deepEqual(fake.pushTokens, [TOKEN], 'the self-review push');
+  assert.ok(fake.execs.every((e) => !e.cmd.includes(TOKEN)), 'no command text carries the token');
+});
+
+test('a revise and the PR backstop act with the project token too', async () => {
+  const TOKEN = 'ghs_fake_revise_token';
+  fake.onRepoToken(() => TOKEN);
+  fake.onCommand('git rev-parse origin/', { stdout: 'def5678\n' });
+  const revising = await withFeedback();
+  assert.equal(await runStage(revising), 'ready_for_review');
+  assert.equal(fake.claudeRuns[0].githubToken, TOKEN);
+  assert.deepEqual(fake.pushTokens, [TOKEN]);
+
+  fake.onCommand('gh pr list', (_cmd, nth) => ({ stdout: nth < 2 ? '[]\n' : `${PR_LIST}\n` }));
+  process.env.GENIE_SELF_REVIEW = '0';
+  const building = await inProgress({ githubIssueNumber: 6 });
+  assert.equal(await runStage(building), 'ready_for_review');
+  const [create] = fake.execs.filter((e) => e.cmd.includes('gh pr create'));
+  assert.equal(create.opts.env?.GH_TOKEN, TOKEN);
+  assert.deepEqual(fake.pushTokens, [TOKEN, TOKEN], 'the backstop push');
+});
+
+test('with no token at all the gh execs carry no env and the Claude runs are told so', async () => {
+  const task = await inProgress();
+  assert.equal(await runStage(task), 'ready_for_review');
+  for (const e of fake.execs.filter((x) => x.cmd.startsWith('gh pr list'))) assert.deepEqual(e.opts.env, {});
+  assert.deepEqual(fake.claudeRuns.map((r) => r.githubToken), [null, null]);
+  assert.deepEqual(fake.pushTokens, [null]);
+});

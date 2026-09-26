@@ -3,9 +3,11 @@
 #
 # One service, one volume, one resident replica: the SQLite file lives on the
 # genie-data volume at /data and survives redeploys, and min_machines_running
-# keeps the worker awake while nobody is connected. The three credentials are
-# secret:// references resolved by `pilot secret set <name>` (keyed by the
-# top-level name below), so no value ever lives in this repo.
+# keeps the worker awake while nobody is connected. Every credential is a
+# secret:// reference resolved by `pilot secret set <name>` (keyed by the
+# top-level name below), so no value ever lives in this repo. The GitHub App
+# id, slug and private key make Genie act as the App; github_token stays as
+# the fallback for a deploy without one.
 #
 # Deliberately absent: ports (the router dials 8080), ${VAR} interpolation,
 # labels, env_file, container_name, stop_grace_period and stop_signal (the
@@ -23,6 +25,9 @@ services:
       GENIE_CONCURRENCY: "1"
       PILOT_API_KEY: secret://pilot_api_key
       CLAUDE_CODE_OAUTH_TOKEN: secret://claude_code_oauth_token
+      GITHUB_APP_ID: secret://github_app_id
+      GITHUB_APP_SLUG: secret://github_app_slug
+      GITHUB_APP_PRIVATE_KEY: secret://github_app_private_key
       GH_TOKEN: secret://github_token
     volumes:
       - genie-data:/data

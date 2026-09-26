@@ -4,7 +4,7 @@
 // pilots/deploy and target_url = the preview. Reviews and review comments
 // are read so a verdict given on the PR reaches the sync (issue #2).
 import type { Project } from '#modules/projects/types.ts';
-import { ghApi } from './client.server.ts';
+import { ghApi, viaInstallation } from './client.server.ts';
 import { listComments } from './issues.server.ts';
 
 export const PREVIEW_MARKER = '<!-- pilots-preview -->';
@@ -34,13 +34,13 @@ export interface PreviewOptions { sha?: string }
 // sha, so a push pilots has not rebuilt yet reads as "not ready", never as a
 // stale URL.
 export async function findPreviewUrl(project: Project, prNumber: number, opts: PreviewOptions = {}): Promise<string | null> {
-  const pr = await ghApi<RestPull>(`repos/${project.githubRepo}/pulls/${prNumber}`);
+  const pr = await ghApi<RestPull>(`repos/${project.githubRepo}/pulls/${prNumber}`, { auth: viaInstallation(project) });
   const sha = opts.sha ?? pr.head.sha;
   const comments = await listComments(project, prNumber);
   const preview = comments.filter((c) => c.body.includes(PREVIEW_MARKER)).at(-1);
   const match = preview?.body.match(PREVIEW_LINE);
   if (match && sha.startsWith(match[1])) return match[2];
-  const combined = await ghApi<RestCombinedStatus>(`repos/${project.githubRepo}/commits/${sha}/status`);
+  const combined = await ghApi<RestCombinedStatus>(`repos/${project.githubRepo}/commits/${sha}/status`, { auth: viaInstallation(project) });
   const ready = combined.statuses.find((s) => s.context === PREVIEW_STATUS_CONTEXT && s.state === 'success' && s.target_url);
   return ready?.target_url ?? null;
 }
@@ -48,10 +48,10 @@ export async function findPreviewUrl(project: Project, prNumber: number, opts: P
 // Squash-merge over REST and delete the head branch. Idempotent: an already
 // merged PR returns without a second merge call.
 export async function mergePr(project: Project, prNumber: number): Promise<{ sha: string | null; merged: boolean }> {
-  const pr = await ghApi<RestPull>(`repos/${project.githubRepo}/pulls/${prNumber}`);
+  const pr = await ghApi<RestPull>(`repos/${project.githubRepo}/pulls/${prNumber}`, { auth: viaInstallation(project) });
   if (pr.merged) return { sha: null, merged: true };
-  const result = await ghApi<{ sha: string; merged: boolean }>(`repos/${project.githubRepo}/pulls/${prNumber}/merge`, { method: 'PUT', body: { merge_method: 'squash' } });
-  await ghApi<undefined>(`repos/${project.githubRepo}/git/refs/heads/${pr.head.ref}`, { method: 'DELETE' }).catch(() => undefined);
+  const result = await ghApi<{ sha: string; merged: boolean }>(`repos/${project.githubRepo}/pulls/${prNumber}/merge`, { method: 'PUT', body: { merge_method: 'squash' }, auth: viaInstallation(project) });
+  await ghApi<undefined>(`repos/${project.githubRepo}/git/refs/heads/${pr.head.ref}`, { method: 'DELETE', auth: viaInstallation(project) }).catch(() => undefined);
   return result;
 }
 
@@ -59,19 +59,19 @@ export async function mergePr(project: Project, prNumber: number): Promise<{ sha
 // reads this once per tick for every task in review and fetches reviews and
 // comments only when updatedAt moved.
 export async function readPr(project: Project, prNumber: number): Promise<PullRequest> {
-  return toPull(await ghApi<RestPull>(`repos/${project.githubRepo}/pulls/${prNumber}`));
+  return toPull(await ghApi<RestPull>(`repos/${project.githubRepo}/pulls/${prNumber}`, { auth: viaInstallation(project) }));
 }
 
 // Submitted reviews, oldest first. A PENDING review (still being written)
 // has no submitted_at and is dropped.
 export async function listPrReviews(project: Project, prNumber: number): Promise<PrReview[]> {
-  const rows = await ghApi<RestReview[]>(`repos/${project.githubRepo}/pulls/${prNumber}/reviews?per_page=100`);
+  const rows = await ghApi<RestReview[]>(`repos/${project.githubRepo}/pulls/${prNumber}/reviews?per_page=100`, { auth: viaInstallation(project) });
   return rows.filter((r) => r.state !== 'PENDING' && r.submitted_at).map(toReview);
 }
 
 // Inline (diff-anchored) comments on the PR, oldest first, each carrying the
 // id of the review it was submitted with.
 export async function listReviewComments(project: Project, prNumber: number): Promise<ReviewComment[]> {
-  const rows = await ghApi<RestReviewComment[]>(`repos/${project.githubRepo}/pulls/${prNumber}/comments?per_page=100`);
+  const rows = await ghApi<RestReviewComment[]>(`repos/${project.githubRepo}/pulls/${prNumber}/comments?per_page=100`, { auth: viaInstallation(project) });
   return rows.map(toReviewComment);
 }

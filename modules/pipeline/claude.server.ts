@@ -94,6 +94,9 @@ export interface RunClaudeOptions {
   maxTurns: number;
   logPath?: string;
   model?: string;
+  // The GitHub token the run acts with (the project's installation token).
+  // Left out, the operator's GH_TOKEN is used; null means none at all.
+  githubToken?: string | null;
   // Non-secret extras, spread last.
   env?: Record<string, string>;
 }
@@ -158,7 +161,7 @@ function parseLine(line: string): ResultLine | RateLimitLine | null {
 export async function runClaude(machineId: string, opts: RunClaudeOptions): Promise<ClaudeRun> {
   const token = process.env.CLAUDE_CODE_OAUTH_TOKEN;
   if (!token) throw new Error('CLAUDE_CODE_OAUTH_TOKEN is not set');
-  const ghToken = process.env.GH_TOKEN;
+  const ghToken = opts.githubToken === undefined ? process.env.GH_TOKEN : opts.githubToken;
   const logPath = opts.logPath ?? DEFAULT_LOG_PATH;
 
   await writeFile(machineId, DEFAULT_PROMPT_PATH, opts.prompt);
