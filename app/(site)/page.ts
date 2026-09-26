@@ -165,7 +165,7 @@ export default function Home() {
     ${section({
       id: 'built',
       layout: 'split',
-      heading: 'Two open-source pieces underneath',
+      heading: 'Two pieces underneath',
       lede: 'genie is a small WebJs app with a SQLite queue and a worker. The heavy lifting is done by the framework it is built with and the platform it runs on.',
       body: html`
         <div class="grid gap-5 md:grid-cols-2">
