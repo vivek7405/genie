@@ -1,11 +1,13 @@
 // Server-only: the one place a task's status changes. Enforces the state
-// machine, writes the feed line, and pushes the board.
+// machine, writes the feed line, pushes the board, and mirrors the card to
+// GitHub (awaited, never throwing).
 import { eq } from 'drizzle-orm';
 import { db } from '#db/connection.server.ts';
 import { tasks } from '#db/schema.server.ts';
 import type { ActionResult } from '@webjsdev/server';
 import type { Task, TaskStatus } from '#modules/tasks/types.ts';
 import { canTransition, labelOf, type Actor } from '#modules/tasks/utils/state-machine.ts';
+import { mirrorTask } from '#modules/github/mirror.server.ts';
 import { recordEvent, notifyBoard } from './events.server.ts';
 import { redact } from './pilots.server.ts';
 
@@ -26,6 +28,7 @@ export async function transition(
   const [row] = await db.update(tasks).set(patch).where(eq(tasks.id, taskId)).returning();
   await recordEvent(row.id, 'status', note ?? `${labelOf(task.status)} to ${labelOf(to)}`);
   notifyBoard(row);
+  await mirrorTask(row);
   return { success: true, data: row };
 }
 
