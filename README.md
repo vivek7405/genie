@@ -62,7 +62,7 @@ Open http://localhost:8080, sign in with GitHub, and connect a repository as
 gains the Plan and Review options if it lacks them.
 
 Webhook: in the GitHub App's settings set Webhook to Active with the URL
-`https://genie.rent/api/github/webhook` (your own origin locally), a secret
+`https://genie.pilotrun.app/api/github/webhook` (your own origin locally), a secret
 that goes in `GITHUB_APP_WEBHOOK_SECRET`, and subscribe to the Issues, Issue
 comment, Pull request and Pull request review events. A labelled issue, a
 `GENIE:` comment, a review or a merge then syncs within seconds; the 30 s
