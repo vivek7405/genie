@@ -3,9 +3,11 @@
 // recently registered matching rule wins, and a list of answers is consumed
 // in order with the last one repeating), and the defaults describe one happy
 // path: a live machine, a repository with code, a plan, a PR the agent opened
-// and a preview that is ready at once. Every timing is zero except the two
-// windows, so a poll loop runs its iterations without waiting.
+// and a preview that is ready at once, and no review threads. Every timing is
+// zero except the two windows, so a poll loop runs its iterations without
+// waiting.
 import type { ClaudeRun, RunClaudeOptions } from '#modules/pipeline/claude.server.ts';
+import type { ReviewComment } from '#modules/github/pr.server.ts';
 import type { ExecOptions, ExecResult } from '#modules/pipeline/pilots.server.ts';
 import type { StageDeps } from '#modules/pipeline/stages.server.ts';
 
@@ -36,6 +38,7 @@ export interface FakeDeps {
   comments: { issueNumber: number; body: string }[];
   issueReads: number[];
   previews: { prNumber: number; sha: string }[];
+  threadReads: number[];
   fileReads: string[];
   // Every exec, Claude run, push and preview poll in the order they
   // happened ('exec:<cmd>', 'claude', 'push', 'preview'), for ordering
@@ -45,6 +48,7 @@ export interface FakeDeps {
   onClaude(fn: (opts: RunClaudeOptions, nth: number) => ClaudeRun | Promise<ClaudeRun>): FakeDeps;
   onReadFile(fn: (path: string) => string | Promise<string>): FakeDeps;
   onPreview(fn: (prNumber: number, sha: string, nth: number) => string | null): FakeDeps;
+  onReviewComments(fn: (prNumber: number) => ReviewComment[] | Promise<ReviewComment[]>): FakeDeps;
   // The commands so far whose text includes `needle`.
   commands(needle: string | RegExp): string[];
 }
@@ -55,6 +59,7 @@ export function fakeDeps(): FakeDeps {
     claude: (() => okRun()) as (opts: RunClaudeOptions, nth: number) => ClaudeRun | Promise<ClaudeRun>,
     readFile: (() => PLAN_TEXT) as (path: string) => string | Promise<string>,
     preview: (() => PREVIEW_URL) as (prNumber: number, sha: string, nth: number) => string | null,
+    reviewComments: (() => []) as (prNumber: number) => ReviewComment[] | Promise<ReviewComment[]>,
   };
   let claudeCalls = 0;
   let previewCalls = 0;
@@ -74,7 +79,7 @@ export function fakeDeps(): FakeDeps {
   };
 
   const fake: FakeDeps = {
-    execs: [], claudeRuns: [], machines: [], clones: [], pushes: [], comments: [], issueReads: [], previews: [], fileReads: [], timeline: [],
+    execs: [], claudeRuns: [], machines: [], clones: [], pushes: [], comments: [], issueReads: [], previews: [], threadReads: [], fileReads: [], timeline: [],
     deps: {
       async createTaskMachine(task) {
         const m = { id: `m-${++machineCount}`, name: `genie-stages-${task.id.slice(0, 8)}` };
@@ -117,6 +122,10 @@ export function fakeDeps(): FakeDeps {
         fake.timeline.push('preview');
         return state.preview(prNumber, opts.sha, previewCalls++);
       },
+      async listReviewComments(_project, prNumber) {
+        fake.threadReads.push(prNumber);
+        return state.reviewComments(prNumber);
+      },
       timing: { logPollMs: 0, previewPollMs: 0, appPollMs: 0, previewTimeoutMs: 60_000, appStartTimeoutMs: 60_000 },
       machineUrl: (name) => `https://${name}.pilotrun.app`,
     },
@@ -134,6 +143,10 @@ export function fakeDeps(): FakeDeps {
     },
     onPreview(fn) {
       state.preview = fn;
+      return fake;
+    },
+    onReviewComments(fn) {
+      state.reviewComments = fn;
       return fake;
     },
     commands(needle) {

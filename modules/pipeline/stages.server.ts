@@ -5,6 +5,9 @@
 //   planning     plan            one timeboxed Claude run writes PLAN.md
 //   in_progress  build           a long Claude run on a branch, then the PR,
 //                                a self-review, and the preview URL
+//                revise          when the row carries feedback: a shorter run
+//                                on the same branch and PR, a push, and the
+//                                preview of the new commit
 //
 // Every stage is safe to run twice on the same row (a stale claim, a restart
 // that cleared claimedAt): the machine is reused when it still answers, the
@@ -18,7 +21,7 @@ import { tasks } from '#db/schema.server.ts';
 import type { Project, Task } from '#db/schema.server.ts';
 import type { TaskStatus } from '#modules/tasks/types.ts';
 import { commentMarker, commentOnIssue, readIssue } from '#modules/github/issues.server.ts';
-import { findPreviewUrl } from '#modules/github/pr.server.ts';
+import { findPreviewUrl, listReviewComments, type ReviewComment } from '#modules/github/pr.server.ts';
 import { createTaskMachine, execLong, readFile, shellQuote, type ExecOptions, type ExecResult } from './pilots.server.ts';
 import { runClaude, type ClaudeRun, type RunClaudeOptions } from './claude.server.ts';
 import { cloneRepo, gitEnv, pushBranch } from './git.server.ts';
@@ -34,6 +37,9 @@ const BUILD_TIMEOUT_MS = Number(process.env.GENIE_BUILD_TIMEOUT_MS ?? 2_700_000)
 const BUILD_MAX_TURNS = 200;
 const SELF_REVIEW_TIMEOUT_MS = 600_000;
 const SELF_REVIEW_MAX_TURNS = 60;
+// A revise is smaller than a build.
+const REVISE_TIMEOUT_MS = 1_800_000;
+const REVISE_MAX_TURNS = 120;
 const LOG_LINE_MAX = 240;
 const LOG_POLL_MAX_BYTES = 65_536;
 const PR_BODY_PATH = '/home/pilot/pr-body.md';
@@ -66,13 +72,14 @@ export interface StageDeps {
   commentOnIssue: (project: Project, issueNumber: number, body: string) => Promise<unknown>;
   readIssue: (project: Project, issueNumber: number) => Promise<{ title: string; body: string }>;
   findPreviewUrl: (project: Project, prNumber: number, opts: { sha: string }) => Promise<string | null>;
+  listReviewComments: (project: Project, prNumber: number) => Promise<ReviewComment[]>;
   timing: StageTiming;
   // The public URL of a task machine, for the preview fallback.
   machineUrl: (name: string) => string;
 }
 
 const defaults: StageDeps = {
-  createTaskMachine, execLong, readFile, runClaude, cloneRepo, pushBranch, commentOnIssue, readIssue, findPreviewUrl,
+  createTaskMachine, execLong, readFile, runClaude, cloneRepo, pushBranch, commentOnIssue, readIssue, findPreviewUrl, listReviewComments,
   timing: {
     logPollMs: 5_000,
     previewPollMs: 15_000,
@@ -243,10 +250,10 @@ function ghEnv(): Record<string, string> {
   return token ? gitEnv(token) : {};
 }
 
-// #5 branches here on task.feedback to pick prompts/revise.md and to read
-// deps for the same-branch push. M4 always builds.
-export function buildOrRevise(_task: Task, _deps: StageDeps): 'build' {
-  return 'build';
+// Feedback on the row is a pending instruction: the stage revises instead of
+// building. Retry after a failed revise finds the feedback still there.
+export function buildOrRevise(task: Pick<Task, 'feedback'>, _deps: StageDeps): 'build' | 'revise' {
+  return task.feedback ? 'revise' : 'build';
 }
 
 // Genie scaffolds deterministically: the scaffold is a build-stage
@@ -274,6 +281,7 @@ async function scaffoldWebjs(task: Task, machineId: string, branch: string, defa
 // A re-claim reuses the branch and never opens a second PR: an open one is
 // looked up before Claude runs at all.
 export async function build(task: Task, project: Project): Promise<TaskStatus> {
+  if (buildOrRevise(task, deps) === 'revise') return revise(task, project);
   const machineId = requireMachine(task);
   const branch = task.branch ?? branchFor(task);
   if (!task.branch) await patchTask(task.id, { branch });
@@ -283,7 +291,7 @@ export async function build(task: Task, project: Project): Promise<TaskStatus> {
     const closesLine = task.githubIssueNumber ? `Closes #${task.githubIssueNumber}` : `Task: ${task.title}`;
     const empty = await isEmptyRepo(machineId);
     if (empty) await scaffoldWebjs(task, machineId, branch, project.defaultBranch);
-    const prompt = renderPrompt(buildOrRevise(task, deps), {
+    const prompt = renderPrompt('build', {
       ...text, repo: project.githubRepo, appDir: APP_DIR, planPath: PLAN_PATH, plan: task.plan ?? '(no plan, work from the task text)',
       branch, defaultBranch: project.defaultBranch, closesLine, stackNote: stackNote(empty, branch),
     });
@@ -301,6 +309,62 @@ export async function build(task: Task, project: Project): Promise<TaskStatus> {
   const previewUrl = await awaitPreview(task, project, machineId, pr.number, sha);
   await patchTask(task.id, { previewUrl });
   return 'ready_for_review';
+}
+
+// Stage 3 again, after Request changes: one shorter run applies the feedback
+// on the same branch and PR, then the stage waits for the preview of the NEW
+// head (same URL across rounds, so only the sha tells them apart). Whatever
+// the run left uncommitted is committed and pushed by Genie, the way the
+// self-review is. The feedback leaves the row only once the preview is back:
+// a revise that throws lands in failStage with the feedback still set, so
+// Retry reruns it with the same instruction on the same machine.
+export async function revise(task: Task, project: Project): Promise<TaskStatus> {
+  if (!task.branch || task.prNumber == null || !task.machineId) {
+    throw new Error('Cannot revise: the task has no branch, pull request or machine yet. Send it back to Todo by recreating it.');
+  }
+  const { branch, prNumber, machineId, feedback } = task;
+  const text = await taskText(task, project);
+  await recordEvent(task.id, 'status', `Revising on ${branch}: ${feedback}`);
+  const threads = await reviewThreads(project, prNumber);
+  const prompt = renderPrompt('revise', {
+    feedback: feedback!, threads, plan: task.plan ?? '(no plan, work from the feedback)', issueRef: text.issueRef,
+    repo: project.githubRepo, appDir: APP_DIR, branch, defaultBranch: project.defaultBranch, prNumber: String(prNumber),
+  });
+  await recordEvent(task.id, 'log', `Revising on ${branch} (timeboxed to ${Math.round(REVISE_TIMEOUT_MS / 60_000)} minutes)`);
+  await withLogFeed(task.id, machineId, () =>
+    claude(machineId, { prompt, cwd: APP_DIR, timeoutMs: REVISE_TIMEOUT_MS, maxTurns: REVISE_MAX_TURNS, logPath: AGENT_LOG }));
+  const commit = await deps.execLong(machineId,
+    `git diff --quiet HEAD -- . || (git add -A && git commit -q -m "Apply the review feedback" && echo committed)`,
+    { cwd: APP_DIR, timeoutMs: 60_000 });
+  if (commit.stdout.includes('committed')) await recordEvent(task.id, 'log', 'Committed the changes the run left in the working tree');
+  await deps.pushBranch(machineId, APP_DIR, branch);
+  const sha = await headSha(machineId, branch);
+  await recordEvent(task.id, 'log', `Pushed ${sha.slice(0, 7)} to ${branch}; Pilots is rebuilding the preview`);
+  const previewUrl = await awaitPreview(task, project, machineId, prNumber, sha);
+  // The feedback is history now; the feed keeps it.
+  await patchTask(task.id, { previewUrl, feedback: null });
+  await recordEvent(task.id, 'status', `Feedback applied in ${sha.slice(0, 7)}: ${feedback}`);
+  if (task.githubIssueNumber != null) {
+    await deps.commentOnIssue(project, task.githubIssueNumber, `${commentMarker('revised')}\nRevised in ${sha.slice(0, 7)}. Preview: ${previewUrl}`);
+  }
+  return 'ready_for_review';
+}
+
+// The inline review threads on the PR, as the prompt lists them, so the run
+// can reply on the ones it addressed. A PR that cannot be read (no token in
+// dev) is an empty list, never a failed revise: the feedback text already
+// carries the review body and its inline comments.
+async function reviewThreads(project: Project, prNumber: number): Promise<string> {
+  let comments: ReviewComment[];
+  try {
+    comments = await deps.listReviewComments(project, prNumber);
+  } catch {
+    comments = [];
+  }
+  if (comments.length === 0) return '(none)';
+  return comments
+    .map((c) => `- thread ${c.id} by ${c.author || 'unknown'} on ${c.path}${c.line != null ? `:${c.line}` : ''}: ${c.body.trim().split('\n')[0]}`)
+    .join('\n');
 }
 
 export function selfReviewEnabled(): boolean {
