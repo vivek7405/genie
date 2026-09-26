@@ -136,7 +136,7 @@ export default function Home() {
       id: 'sandbox',
       layout: 'split',
       heading: 'Every task gets its own computer',
-      lede: 'The agent never runs on your machine or on Genie’s. Each task forks a microVM from a base image that already has git, gh and Claude Code on it, does its work there, and leaves nothing behind.',
+      lede: 'The agent never runs on your machine or on Genie’s. Each task forks a machine from a base image that already has git, gh and Claude Code on it, does its work there, and leaves nothing behind.',
       body: html`
         <div class="grid gap-5 md:grid-cols-3">
           <div class=${cn(cardClass(), 'p-5')}><p class="m-0 mb-1.5 font-semibold">Forked, not booted</p><p class="m-0 text-meta text-muted-foreground">A sandbox is restored from a checkpoint, so it is answering before the plan is written. Idle ones suspend and cost nothing.</p></div>
