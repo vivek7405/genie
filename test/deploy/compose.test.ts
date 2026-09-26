@@ -1,6 +1,6 @@
-// The pilots compose file, checked line by line with regexes (no YAML
+// The Pilots compose file, checked line by line with regexes (no YAML
 // dependency): the shape `pilot deploy` ships, the secret references, the
-// volume, the resident replica, the readiness probe, and the keys the pilots
+// volume, the resident replica, the readiness probe, and the keys the Pilots
 // planner refuses.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -85,7 +85,7 @@ test('the healthcheck probes /__webjs/ready with a 40 s start period', () => {
   assert.ok(code.some((l) => /^\s+start_period: 40s\s*$/.test(l)));
 });
 
-test('nothing the pilots planner refuses, and no ${} interpolation', () => {
+test('nothing the Pilots planner refuses, and no ${} interpolation', () => {
   for (const key of ['ports', 'env_file', 'labels', 'container_name', 'stop_grace_period', 'stop_signal']) {
     assert.ok(!code.some((l) => new RegExp(`^\\s*${key}:`).test(l)), `${key}: must not appear`);
   }

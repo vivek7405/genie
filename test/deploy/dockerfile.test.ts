@@ -1,4 +1,4 @@
-// The image genie ships: port, /data for the volume, gh for the demo reset,
+// The image Genie ships: port, /data for the volume, gh for the demo reset,
 // the start command, and what .dockerignore keeps out of the build context.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
