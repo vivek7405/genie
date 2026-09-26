@@ -115,6 +115,7 @@ export default function BrandPage() {
       ${PALETTE.map((s) => `.sw-${s.token} { background: var(--${s.token}); }`).join('\n      ')}
     </style>
 
+    <div class="mx-auto max-w-6xl px-4 py-10 sm:px-6">
     ${pageHeader({
       title: 'The mark, the colours and the name',
       lede: 'Everything needed to show genie somewhere other than this app: the mark as files, the rules that keep it legible, the palette, the type, and how the name is written.',
@@ -262,5 +263,6 @@ export default function BrandPage() {
           <p class=${cn(proseClass(), 'm-0')}>Ask first before using the name or the mark as part of another product's name or logo, on merchandise, or in any way that suggests genie endorses something.</p>
         </div>`,
     })}
+    </div>
   `;
 }
