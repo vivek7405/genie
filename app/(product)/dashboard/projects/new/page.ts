@@ -34,7 +34,7 @@ export default function NewProject({ actionData }: NewProjectProps) {
       ${field({
         id: 'githubProjectNumber',
         label: 'Project board',
-        hint: 'The number in the board URL. Optional: without it, tasks live only in genie.',
+        hint: 'The number in the board URL. Optional: without it, tasks live only in Genie.',
         error: errors.githubProjectNumber,
         control: html`<input id="githubProjectNumber" name="githubProjectNumber" inputmode="numeric" placeholder="11" value=${values.githubProjectNumber ?? ''} class=${cn(inputClass(), 'max-w-40 font-mono')}>`,
       })}

@@ -9,7 +9,7 @@ import { cn } from '#lib/utils/cn.ts';
 
 export const metadata = {
   title: 'Brand',
-  description: 'The genie mark, the palette, the type and how the name is written, with the rules that keep them legible.',
+  description: 'The Genie mark, the palette, the type and how the name is written, with the rules that keep them legible.',
 };
 
 // /brand: the guidelines. Three things this page keeps doing: the mark is
