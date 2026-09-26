@@ -85,6 +85,9 @@ async function scenario(spec: Scenario) {
     const pr = spec.prs?.[Number(m[1])] ?? {};
     return { number: Number(m[1]), state: pr.merged_at ? 'closed' : 'open', merged: !!pr.merged_at, merged_at: pr.merged_at ?? null, updated_at: pr.updated_at ?? PAST, html_url: `https://github.com/${repo}/pull/${m[1]}`, head: { sha: 'abc', ref: 'genie/x' } };
   });
+  // Approve merges through the real mergePr: the squash call and the branch delete.
+  fake.onMatch('PUT', new RegExp(`^repos/${repo}/pulls/(\\d+)/merge$`), () => ({ sha: 'merged-sha', merged: true }));
+  fake.onMatch('DELETE', new RegExp(`^repos/${repo}/git/refs/heads/.+$`), () => undefined);
   fake.onMatch('GET', new RegExp(`^repos/${repo}/pulls/(\\d+)/reviews$`), (_call, m) => (spec.prs?.[Number(m[1])]?.reviews ?? []).map((r) => ({ id: r.id, state: r.state, body: r.body ?? null, user: { login: 'vivek7405' }, submitted_at: r.at, html_url: `https://github.com/${repo}/r/${r.id}` })));
   fake.onMatch('GET', new RegExp(`^repos/${repo}/pulls/(\\d+)/comments$`), (_call, m) => (spec.prs?.[Number(m[1])]?.reviews ?? []).flatMap((r) => (r.inline ?? []).map((c, i) => ({ id: r.id * 100 + i, pull_request_review_id: r.id, path: c.path, line: c.line, original_line: c.line, body: c.body, user: { login: 'vivek7405' }, created_at: r.at, html_url: 'u' }))));
 

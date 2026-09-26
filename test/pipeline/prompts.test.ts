@@ -36,6 +36,31 @@ test('renderPrompt fills every placeholder of the plan prompt', () => {
   assert.ok(out.includes('Your final message is the single word DONE.'));
 });
 
+const REVISE_VARS = {
+  repo: 'harness/stages',
+  appDir: '/home/pilot/app',
+  issueRef: 'Issue #4',
+  prNumber: '7',
+  branch: 'genie/4-add-an-about-page',
+  defaultBranch: 'main',
+  feedback: 'make it dark mode',
+  threads: '- thread 501 by vivek7405 on app/page.ts:12: rename this',
+  plan: '## Stack\nexisting: WebJs',
+};
+
+test('renderPrompt fills every placeholder of the revise prompt', () => {
+  const out = renderPrompt('revise', REVISE_VARS);
+  assert.ok(!out.includes('{{'), 'no placeholder survives');
+  assert.ok(out.includes('make it dark mode'));
+  assert.ok(out.includes('git checkout genie/4-add-an-about-page && git pull --ff-only origin genie/4-add-an-about-page'));
+  assert.ok(out.includes('gh api repos/harness/stages/pulls/7/comments/<thread id>/replies'));
+  assert.ok(out.includes('gh pr edit 7 --add-reviewer'));
+  assert.ok(out.includes('- thread 501 by vivek7405 on app/page.ts:12: rename this'));
+  assert.ok(out.includes('Do not open a new PR'));
+  assert.ok(out.includes('REVISION_BLOCKED.md'));
+  assert.ok(!out.includes(String.fromCharCode(0x2014)), 'no em-dash');
+});
+
 test('renderPrompt fills every placeholder of the build prompt', () => {
   const out = renderPrompt('build', BUILD_VARS);
   assert.ok(!out.includes('{{'), 'no placeholder survives');

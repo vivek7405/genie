@@ -2,7 +2,7 @@ import { html, notFound } from '@webjsdev/core';
 import type { PageProps } from '@webjsdev/core';
 import { buttonClass } from '#components/ui/button.ts';
 import { textareaClass } from '#components/ui/textarea.ts';
-import { backLink, errorAlert, facts, field, fieldLabelClass, pageHeader, panel, sectionHeading } from '#lib/utils/ui.ts';
+import { backLink, errorAlert, facts, field, pageHeader, panel, sectionHeading } from '#lib/utils/ui.ts';
 import { cn } from '#lib/utils/cn.ts';
 import { getProject } from '#modules/projects/queries/get-project.server.ts';
 import { approveTask } from '#modules/tasks/actions/approve-task.server.ts';
@@ -56,9 +56,10 @@ export default async function TaskCard({ params, actionData }: CardProps) {
         <div class="grid content-start gap-8">
           ${task.error ? html`
             <section class="rounded-md border border-destructive/40 bg-destructive/5 p-5">
-              <h2 class="m-0 text-heading font-semibold text-destructive">This stage failed</h2>
+              <h2 class="m-0 text-heading font-semibold text-destructive">Attempt ${task.attempt} failed in ${labelOf(task.status)}</h2>
               <pre class="m-0 mt-2 whitespace-pre-wrap font-mono text-meta">${task.error}</pre>
-              <form action=${retryTask} class="mt-4"><input type="hidden" name="taskId" value=${task.id}><button type="submit" class=${buttonClass({ variant: 'outline', size: 'sm' })}>Retry ${labelOf(task.status).toLowerCase()}</button></form>
+              <p class="m-0 mt-2 text-meta text-muted-foreground">Retry re-runs this stage on the task's machine${task.feedback ? ', applying the same feedback' : ''}.</p>
+              <form action=${retryTask} class="mt-4"><input type="hidden" name="taskId" value=${task.id}><button type="submit" class=${buttonClass({ variant: 'outline', size: 'sm' })}>Retry ${labelOf(task.status)}</button></form>
             </section>` : ''}
 
           <section>
@@ -87,13 +88,24 @@ export default async function TaskCard({ params, actionData }: CardProps) {
         </div>
 
         <aside class="grid content-start gap-8">
+          ${task.status === 'done' ? html`
+            <section>
+              ${sectionHeading('Merged, production deploying', 'Pilots deploys the default branch on its own. Genie does not wait for it.')}
+              ${panel(html`<p class="m-0 text-body">
+                ${task.prNumber != null ? html`PR ${ext(task.prUrl ?? `https://github.com/${project.githubRepo}/pull/${task.prNumber}`, `#${task.prNumber}`)} was squash-merged into <code>${project.defaultBranch}</code>.` : 'Approved without a pull request.'}
+                ${project.productionUrl
+                  ? html` Pilots deploys <code>${project.defaultBranch}</code> to ${ext(project.productionUrl, project.productionUrl)}.`
+                  : html` No Pilots service tracks this repository, so nothing deploys. Connect the repo to Pilots with <code>pilot repo connect ${project.githubRepo}</code>.`}
+              </p>`)}
+            </section>` : ''}
+
           <section>
             ${sectionHeading('Deliverables', 'What Genie hands back when the card is ready.')}
             ${panel(facts([
               { label: 'Issue', value: task.githubIssueNumber != null ? ext(`https://github.com/${project.githubRepo}/issues/${task.githubIssueNumber}`, `#${task.githubIssueNumber}`) : pending },
               { label: 'Branch', value: task.branch ? html`<span class="font-mono text-meta">${task.branch}</span>` : pending },
               { label: 'Pull request', value: task.prUrl ? ext(task.prUrl, `#${task.prNumber}`) : pending },
-              { label: 'Preview', value: task.previewUrl ? ext(task.previewUrl, task.previewUrl.replace(/^https?:\/\//, '')) : pending },
+              { label: 'Preview', value: task.previewUrl ? ext(task.previewUrl, task.previewUrl.replace(/^https?:\/\//, '')) : task.status === 'done' ? html`<span class="text-muted-foreground">removed on merge</span>` : pending },
               { label: 'Sandbox', value: task.machineName ? html`<span class="font-mono text-meta">${task.machineName}</span>` : pending },
             ]))}
           </section>
@@ -101,7 +113,7 @@ export default async function TaskCard({ params, actionData }: CardProps) {
           ${task.status === 'ready_for_review' ? html`
             <section>
               ${sectionHeading('Review', 'Approve merges the pull request. Changes send it back with your note.')}
-              ${panel(html`
+              ${task.claimedAt ? panel(html`<p class="m-0 text-body text-muted-foreground">Merging${task.prNumber != null ? html` PR #${task.prNumber}` : ''}… Reload in a moment.</p>`) : panel(html`
                 <form action=${approveTask}>
                   <input type="hidden" name="taskId" value=${task.id}>
                   <button type="submit" class=${cn(buttonClass(), 'w-full')}>Approve and merge</button>
@@ -120,14 +132,10 @@ export default async function TaskCard({ params, actionData }: CardProps) {
 
           ${task.feedback ? html`
             <section>
-              ${sectionHeading('Latest feedback', 'The note the agent is working from.')}
+              ${sectionHeading('Feedback being applied', task.status === 'in_progress' ? 'Genie is revising the same branch with this note. The preview is rebuilt when it pushes.' : 'The note the next revise will apply.')}
               ${panel(html`<p class="m-0 whitespace-pre-wrap text-body">${task.feedback}</p>`)}
             </section>` : ''}
 
-          ${task.status === 'done' ? html`
-            <section>
-              ${panel(html`<p class="m-0 text-body"><span class=${fieldLabelClass()}>Merged</span><br>The pull request is merged. Once the repository is connected to Pilots, the default branch deploys on its own.</p>`)}
-            </section>` : ''}
         </aside>
       </div>
     </webjs-frame>

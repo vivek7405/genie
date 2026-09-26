@@ -27,7 +27,7 @@ export default async function Board({ params }: PageProps<'/dashboard/projects/[
       title: project.name,
       lede: html`<span class="font-mono text-meta">${link(`https://github.com/${project.githubRepo}`, project.githubRepo)}</span>
         ${project.githubProjectNumber ? html`<span class="text-muted-foreground"> · </span>${link(`https://github.com/${owner}/projects/${project.githubProjectNumber}`, html`board #${project.githubProjectNumber}`)}` : ''}
-        ${project.productionUrl ? html`<span class="text-muted-foreground"> · </span>${link(project.productionUrl, 'production')}` : ''}`,
+        ${project.productionUrl ? html`<span class="text-muted-foreground"> · </span><a href=${project.productionUrl} target="_blank" rel="noopener" class="text-muted-foreground hover:text-foreground" title="Pilots deploys ${project.defaultBranch} here">production</a>` : ''}`,
       actions: html`
         <live-refresh project-id=${project.id} frame="board" class="mr-2"></live-refresh>
         <a href="/dashboard/projects/${project.id}/tasks/new" class=${cn(buttonClass({ size: 'sm' }), 'no-underline')}>New task</a>`,

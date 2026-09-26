@@ -45,5 +45,5 @@ test('a deferral in the past no longer reads as Waiting, and a failure wins over
   assert.match(red, />Failed<\/span>/);
   assert.doesNotMatch(red, />Waiting<\/span>/);
   const board = await (await testRequest(app.handle, `/dashboard/projects/${project.id}`)).text();
-  assert.match(board, /failed on attempt 2/);
+  assert.match(board, /Failed on attempt 2, open to retry/);
 });

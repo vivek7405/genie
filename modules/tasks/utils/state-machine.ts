@@ -15,7 +15,7 @@ export const COLUMNS: readonly Column[] = [
   { status: 'planning', label: 'Plan', hint: 'Genie is writing the plan' },
   { status: 'in_progress', label: 'In progress', hint: 'Genie is building and self-reviewing on a branch' },
   { status: 'ready_for_review', label: 'Review', hint: 'Implemented and self-reviewed; a PR and a preview wait for you' },
-  { status: 'done', label: 'Done', hint: 'Merged and shipped' },
+  { status: 'done', label: 'Done', hint: 'Merged, Pilots deploys the default branch' },
 ];
 
 // The stage the worker advances a task to once the current stage completes.

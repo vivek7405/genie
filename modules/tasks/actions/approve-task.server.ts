@@ -1,6 +1,6 @@
 'use server';
-// The reviewer's "Approve" verdict. M5 adds the PR merge; for now it is the
-// state change alone.
+// Form-bound "Approve and merge". The merge and the state change live in
+// verdicts.server.ts so the GitHub sync runs the same logic.
 import type { ActionResult } from '@webjsdev/server';
 import { approve } from '#modules/pipeline/verdicts.server.ts';
 import type { Task } from '../types.ts';

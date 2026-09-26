@@ -401,6 +401,95 @@ test('parseSelfReview reads the counts out of a free-form summary', () => {
   assert.deepEqual(stages.parseSelfReview(''), { fixed: 0, comments: 0 });
 });
 
+// The revise round after Request changes.
+
+const withFeedback = (patch: Partial<TaskInsert> = {}) =>
+  inProgress({ branch: 'genie/4-add-an-about-page', prNumber: 7, prUrl: PR_URL, previewUrl: PREVIEW_URL, feedback: 'make it dark mode', ...patch });
+
+test('in_progress with feedback revises on the same branch, waits for the new sha, clears the feedback and returns to review', async () => {
+  fake.onCommand('git rev-parse origin/', { stdout: 'def5678\n' });
+  fake.onPreview((_pr, sha, nth) => (nth === 0 || sha !== 'def5678' ? null : 'https://pr-7-demo.pilotrun.app'));
+  fake.onReviewComments(() => [
+    { id: 501, reviewId: 9, path: 'app/page.ts', line: 12, body: 'rename this\nand that', author: 'vivek7405', createdAt: 't', htmlUrl: 'u' },
+    { id: 502, reviewId: 9, path: 'README.md', line: null, body: 'typo', author: '', createdAt: 't', htmlUrl: 'u' },
+  ]);
+  fake.onCommand('git diff --quiet HEAD', { stdout: 'committed\n' });
+  const task = await withFeedback();
+  assert.equal(await runStage(task), 'ready_for_review');
+  assert.equal(fake.claudeRuns.length, 1, 'one revise run, no build, no self-review');
+  const run = fake.claudeRuns[0];
+  assert.equal(run.timeoutMs, 1_800_000);
+  assert.equal(run.maxTurns, 120);
+  assert.equal(run.cwd, APP_DIR);
+  assert.equal(run.logPath, '/home/pilot/agent.log');
+  assert.ok(run.prompt.includes('make it dark mode'));
+  assert.ok(run.prompt.includes('Pull request\n#7'));
+  assert.ok(run.prompt.includes('Branch `genie/4-add-an-about-page` (base `main`)'));
+  assert.ok(run.prompt.includes('- thread 501 by vivek7405 on app/page.ts:12: rename this'));
+  assert.ok(run.prompt.includes('- thread 502 by unknown on README.md: typo'));
+  assert.ok(run.prompt.includes(PLAN_TEXT));
+  assert.ok(run.prompt.includes('Issue #4'));
+  assert.ok(!run.prompt.includes('{{'));
+  assert.deepEqual(fake.threadReads, [7]);
+  assert.equal(fake.commands('gh pr list').length, 0, 'the PR is known');
+  assert.equal(fake.commands('gh pr create').length, 0);
+  assert.deepEqual(fake.pushes, [{ machineId: 'm1', dir: APP_DIR, branch: 'genie/4-add-an-about-page' }]);
+  assert.deepEqual(fake.previews, [{ prNumber: 7, sha: 'def5678' }, { prNumber: 7, sha: 'def5678' }]);
+  const t = fake.timeline;
+  assert.ok(t.indexOf('claude') < t.indexOf('push') && t.indexOf('push') < t.indexOf('preview'), t.join(' | '));
+  const row = await reload(task.id);
+  assert.equal(row.feedback, null, 'the feedback was applied');
+  assert.equal(row.previewUrl, 'https://pr-7-demo.pilotrun.app');
+  assert.equal(row.prNumber, 7);
+  assert.equal(row.branch, 'genie/4-add-an-about-page');
+  assert.equal(fake.comments.length, 1);
+  assert.equal(fake.comments[0].issueNumber, 4);
+  assert.ok(fake.comments[0].body.startsWith('<!-- genie-revised -->\n'));
+  assert.ok(fake.comments[0].body.includes('Revised in def5678. Preview: https://pr-7-demo.pilotrun.app'));
+  const status = await messages(task.id, 'status');
+  assert.ok(status.includes('Revising on genie/4-add-an-about-page: make it dark mode'));
+  assert.ok(status.includes('Feedback applied in def5678: make it dark mode'), 'the feedback moved into the feed');
+  const logs = await messages(task.id, 'log');
+  assert.ok(logs.includes('Committed the changes the run left in the working tree'));
+  assert.ok(logs.includes('Pushed def5678 to genie/4-add-an-about-page; Pilots is rebuilding the preview'));
+  assert.ok(logs.includes('Waiting for the Pilots preview of def5678 on the pull request'));
+});
+
+test('a revise whose preview never appears keeps the feedback so Retry reruns it', async () => {
+  fake.onPreview(() => null);
+  fake.onCommand('127.0.0.1:8080', { exitCode: 1 });
+  setStageDeps({ timing: { ...fake.deps.timing, previewTimeoutMs: 0, appStartTimeoutMs: 0 } });
+  const task = await withFeedback();
+  await assert.rejects(runStage(task), /did not start on port 8080/);
+  assert.equal(fake.claudeRuns.length, 1);
+  const row = await reload(task.id);
+  assert.equal(row.feedback, 'make it dark mode');
+  assert.equal(row.previewUrl, PREVIEW_URL, 'the old preview is untouched');
+  assert.equal(fake.comments.length, 0);
+});
+
+test('a revise with no PR, branch or machine throws before Claude runs', async () => {
+  await assert.rejects(runStage(await withFeedback({ prNumber: null, prUrl: null })), /Cannot revise/);
+  await assert.rejects(runStage(await withFeedback({ branch: null, githubIssueNumber: 5 })), /Cannot revise/);
+  await assert.rejects(runStage(await withFeedback({ machineId: null, githubIssueNumber: 6 })), /Cannot revise/);
+  assert.equal(fake.claudeRuns.length, 0);
+  assert.equal(fake.pushes.length, 0);
+});
+
+test('a revise that cannot read the review threads still runs, with none listed', async () => {
+  fake.onReviewComments(() => { throw new Error('offline in tests'); });
+  const task = await withFeedback({ githubIssueNumber: null });
+  assert.equal(await runStage(task), 'ready_for_review');
+  assert.ok(fake.claudeRuns[0].prompt.includes('## Review threads on the pull request\n\n(none)'));
+  assert.equal(fake.comments.length, 0, 'no issue, no comment');
+  assert.equal((await reload(task.id)).feedback, null);
+});
+
+test('buildOrRevise picks the prompt from the feedback column', () => {
+  assert.equal(stages.buildOrRevise({ feedback: null }, fake.deps), 'build');
+  assert.equal(stages.buildOrRevise({ feedback: 'x' }, fake.deps), 'revise');
+});
+
 // The log feed.
 
 const assistant = (blocks: unknown[]) => JSON.stringify({ type: 'assistant', message: { content: blocks } });
