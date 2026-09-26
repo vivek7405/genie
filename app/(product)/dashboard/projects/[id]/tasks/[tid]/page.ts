@@ -14,11 +14,11 @@ import { COLUMNS, labelOf } from '#modules/tasks/utils/state-machine.ts';
 import { statusBadge } from '#modules/tasks/utils/ui/status-badge.ts';
 import '#modules/tasks/components/live-refresh.ts';
 
-interface CardProps extends PageProps<'/projects/[id]/tasks/[tid]'> {
+interface CardProps extends PageProps<'/dashboard/projects/[id]/tasks/[tid]'> {
   actionData?: { fieldErrors?: Record<string, string>; error?: string };
 }
 
-export async function generateMetadata({ params }: PageProps<'/projects/[id]/tasks/[tid]'>) {
+export async function generateMetadata({ params }: PageProps<'/dashboard/projects/[id]/tasks/[tid]'>) {
   const task = await getTask(params.tid);
   return { title: task ? task.title : 'Task' };
 }
@@ -35,7 +35,7 @@ export default async function TaskCard({ params, actionData }: CardProps) {
   const stepIndex = COLUMNS.findIndex((c) => c.status === task.status);
   return html`
     ${pageHeader({
-      above: backLink(`/projects/${project.id}`, project.name),
+      above: backLink(`/dashboard/projects/${project.id}`, project.name),
       title: task.title,
       lede: html`<span class="inline-flex flex-wrap items-center gap-2">${statusBadge(task.status, task.error)}<span class="font-mono text-label uppercase tracking-[0.12em] text-muted-foreground">attempt ${task.attempt} · created ${task.createdAt.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</span></span>`,
       actions: html`<live-refresh project-id=${project.id} frame="task"></live-refresh>`,

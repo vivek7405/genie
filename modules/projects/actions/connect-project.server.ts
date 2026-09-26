@@ -25,7 +25,7 @@ export const validate = (input: unknown) => {
 
 export async function connectProject(input: ConnectProjectInput): Promise<ActionResult<Project>> {
   const existing = await db.query.projects.findFirst({ where: { githubRepo: input.githubRepo } });
-  if (existing) return { success: true, data: existing, redirect: `/projects/${existing.id}` };
+  if (existing) return { success: true, data: existing, redirect: `/dashboard/projects/${existing.id}` };
   const [row] = await db.insert(projects).values(input).returning();
-  return { success: true, data: row, redirect: `/projects/${row.id}` };
+  return { success: true, data: row, redirect: `/dashboard/projects/${row.id}` };
 }

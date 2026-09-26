@@ -15,5 +15,5 @@ export async function requestChanges(formData: FormData): Promise<ActionResult<T
   await db.update(tasks).set({ feedback }).where(eq(tasks.id, taskId));
   const result = await transition(taskId, 'in_progress', 'human', `Changes requested: ${feedback}`);
   if (!result.success) return result;
-  return { ...result, redirect: `/projects/${result.data.projectId}/tasks/${result.data.id}` };
+  return { ...result, redirect: `/dashboard/projects/${result.data.projectId}/tasks/${result.data.id}` };
 }

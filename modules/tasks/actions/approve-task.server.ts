@@ -9,5 +9,5 @@ export async function approveTask(formData: FormData): Promise<ActionResult<Task
   const taskId = String(formData.get('taskId') ?? '');
   const result = await transition(taskId, 'done', 'human', 'Approved by reviewer');
   if (!result.success) return result;
-  return { ...result, redirect: `/projects/${result.data.projectId}/tasks/${result.data.id}` };
+  return { ...result, redirect: `/dashboard/projects/${result.data.projectId}/tasks/${result.data.id}` };
 }

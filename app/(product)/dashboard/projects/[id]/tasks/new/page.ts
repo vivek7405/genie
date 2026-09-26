@@ -9,7 +9,7 @@ import { cn } from '#lib/utils/cn.ts';
 import { getProject } from '#modules/projects/queries/get-project.server.ts';
 import { createTask } from '#modules/tasks/actions/create-task.server.ts';
 
-interface NewTaskProps extends PageProps<'/projects/[id]/tasks/new'> {
+interface NewTaskProps extends PageProps<'/dashboard/projects/[id]/tasks/new'> {
   actionData?: { fieldErrors?: Record<string, string>; values?: Record<string, string> };
 }
 
@@ -22,7 +22,7 @@ export default async function NewTask({ params, actionData }: NewTaskProps) {
   const values = actionData?.values ?? {};
   return html`
     ${pageHeader({
-      above: backLink(`/projects/${project.id}`, project.name),
+      above: backLink(`/dashboard/projects/${project.id}`, project.name),
       title: 'New task',
       lede: 'Describe the change the way you would brief a colleague. genie plans it, builds it on a branch and opens the pull request.',
     })}
@@ -42,7 +42,7 @@ export default async function NewTask({ params, actionData }: NewTaskProps) {
       })}
       <div class="flex items-center gap-3">
         <button type="submit" class=${buttonClass()}>Add to Todo</button>
-        <a href="/projects/${project.id}" class=${cn(buttonClass({ variant: 'ghost' }), 'no-underline')}>Cancel</a>
+        <a href="/dashboard/projects/${project.id}" class=${cn(buttonClass({ variant: 'ghost' }), 'no-underline')}>Cancel</a>
       </div>
     </form>
     ${footnote('The card lands in Todo and the worker claims it on its next tick.')}

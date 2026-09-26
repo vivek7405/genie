@@ -15,7 +15,7 @@ export function taskCard(task: Task) {
   if (task.previewUrl) meta.push(html`<span>preview ready</span>`);
   if (task.feedback && task.status === 'in_progress') meta.push(html`<span>revising</span>`);
   return html`
-    <a href="/projects/${task.projectId}/tasks/${task.id}"
+    <a href="/dashboard/projects/${task.projectId}/tasks/${task.id}"
        class=${cn(cardClass(), 'block px-3.5 py-3 no-underline transition-colors hover:border-border-strong', task.error && 'border-destructive/50')}>
       <span class="flex items-start gap-2">
         <span class="min-w-0 flex-1 text-body font-medium leading-snug text-foreground">${task.title}</span>

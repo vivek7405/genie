@@ -9,14 +9,14 @@ import { groupByColumn } from '#modules/tasks/utils/state-machine.ts';
 import { taskCard } from '#modules/tasks/utils/ui/task-card.ts';
 import '#modules/tasks/components/live-refresh.ts';
 
-export async function generateMetadata({ params }: PageProps<'/projects/[id]'>) {
+export async function generateMetadata({ params }: PageProps<'/dashboard/projects/[id]'>) {
   const project = await getProject(params.id);
   return { title: project ? project.name : 'Project' };
 }
 
 // The board: five columns inside one <webjs-frame>, so a push from the worker
 // swaps just the board and the masthead never re-renders.
-export default async function Board({ params }: PageProps<'/projects/[id]'>) {
+export default async function Board({ params }: PageProps<'/dashboard/projects/[id]'>) {
   const project = await getProject(params.id);
   if (!project) notFound();
   const columns = groupByColumn(await listBoard(project.id));
@@ -30,7 +30,7 @@ export default async function Board({ params }: PageProps<'/projects/[id]'>) {
         ${project.productionUrl ? html`<span class="text-muted-foreground"> · </span>${link(project.productionUrl, 'production')}` : ''}`,
       actions: html`
         <live-refresh project-id=${project.id} frame="board" class="mr-2"></live-refresh>
-        <a href="/projects/${project.id}/tasks/new" class=${cn(buttonClass({ size: 'sm' }), 'no-underline')}>New task</a>`,
+        <a href="/dashboard/projects/${project.id}/tasks/new" class=${cn(buttonClass({ size: 'sm' }), 'no-underline')}>New task</a>`,
     })}
 
     <webjs-frame id="board" class="block">

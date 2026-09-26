@@ -1,27 +1,16 @@
-import { html, asset, cspNonce } from '@webjsdev/core';
-import type { LayoutProps } from '@webjsdev/core';
-import { paletteCss } from '#lib/design/palette.ts';
-import { brandMark } from '#lib/design/logo.ts';
-import '#components/theme-toggle.ts';
+// The pieces both root layouts share: the pre-paint theme script, the token
+// block and the base styles. Two route groups, (site) and (product), each
+// write their own document shell with their own chrome; the tokens and the
+// theme are one set, declared here once.
+import { html } from '@webjsdev/core';
+import { paletteCss } from './palette.ts';
 
-export const metadata = { title: { default: 'genie', template: '%s · genie' }, icons: '/public/favicon.svg' };
+export const THEME_STORAGE_KEY = 'genie_theme';
 
-// Root layout: the only file that writes the document shell. It owns the
-// design tokens, the theme, and the app chrome: one fixed, opaque header.
-// Every colour is declared once with light-dark(), and public/input.css maps
-// the token names into Tailwind utilities (bg-background, text-muted-foreground).
-export default function RootLayout({ children, url }: LayoutProps) {
-  const path = new URL(url ?? 'http://localhost/').pathname;
-  const nonce = cspNonce();
-  const nav = [
-    { href: '/', label: 'Projects', on: path === '/' || path.startsWith('/projects') },
-    { href: '/brand', label: 'Brand', on: path.startsWith('/brand') },
-  ];
+/** Applies the saved theme before first paint. No backticks inside. */
+export function themeScript(nonce: string) {
   return html`
     <script nonce="${nonce}">
-      // Apply the saved theme before first paint so a dark page never flashes
-      // light. The tokens follow color-scheme, which [data-theme] forces; the
-      // .dark class is for the kit's dark: variants. (No backticks in here.)
       (function () {
         try {
           var mq = window.matchMedia('(prefers-color-scheme: dark)');
@@ -38,9 +27,12 @@ export default function RootLayout({ children, url }: LayoutProps) {
         } catch (_) {}
       })();
     </script>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="color-scheme" content="light dark">
-    <link rel="stylesheet" href=${asset('/public/tailwind.css')}>
+  `;
+}
+
+/** The design tokens and the base styles no utility can reach. */
+export function shellStyles() {
+  return html`
     <style>
       :root {
         --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
@@ -91,28 +83,7 @@ export default function RootLayout({ children, url }: LayoutProps) {
       }
       h1, h2, h3 { letter-spacing: -0.02em; text-wrap: balance; }
       p { text-wrap: pretty; }
-      a { color: inherit; text-decoration-color: var(--border-strong); text-underline-offset: 3px; }
-      a:hover { text-decoration-color: currentColor; }
       live-refresh { display: inline-flex; }
     </style>
-    <header class="fixed inset-x-0 top-0 z-40 border-b border-border bg-background">
-      <div class="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:px-6">
-        <a href="/" class="flex shrink-0 items-center gap-2 font-mono text-body font-semibold tracking-tight text-foreground no-underline" style="--logo-accent: var(--glow)">
-          ${brandMark(22)}
-          genie
-        </a>
-        <nav class="ml-4 flex items-center gap-0.5" aria-label="Primary">
-          ${nav.map((n) => html`<a href=${n.href} aria-current=${n.on ? 'page' : 'false'}
-            class="whitespace-nowrap rounded-sm px-3 py-1.5 text-body no-underline transition-colors ${n.on ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}">${n.label}</a>`)}
-        </nav>
-        <div class="ml-auto flex items-center gap-2">
-          <a href="https://github.com/vivek7405/genie" target="_blank" rel="noopener" class="hidden text-meta text-muted-foreground no-underline hover:text-foreground sm:inline">GitHub</a>
-          <theme-toggle></theme-toggle>
-        </div>
-      </div>
-    </header>
-    <main class="mx-auto min-h-[calc(100dvh-var(--header-h))] max-w-6xl px-4 py-8 sm:px-6">
-      ${children}
-    </main>
   `;
 }

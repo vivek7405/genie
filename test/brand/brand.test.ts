@@ -9,7 +9,7 @@ import { PALETTE } from '#lib/design/palette.ts';
 const app = await createRequestHandler({ appDir, dev: true });
 
 test('the layout declares every palette token once, as a light-dark() pair', async () => {
-  const body = await (await testRequest(app.handle, '/')).text();
+  const body = await (await testRequest(app.handle, '/dashboard')).text();
   for (const s of PALETTE) {
     assert.match(body, new RegExp(`--${s.token}: light-dark\\(${s.light}, ${s.dark}\\);`), `${s.token} declared`);
   }
@@ -30,7 +30,7 @@ test('/brand renders the mark and prints every printed swatch with its values', 
 });
 
 test('the header carries the same mark as /brand', async () => {
-  const home = await (await testRequest(app.handle, '/')).text();
+  const home = await (await testRequest(app.handle, '/dashboard')).text();
   assert.match(home, /--logo-accent: var\(--glow\)/);
   assert.match(home, /<circle cx="22.5" cy="8.5" r="5.5"/);
 });

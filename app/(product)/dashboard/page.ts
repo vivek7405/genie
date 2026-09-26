@@ -15,10 +15,10 @@ export default async function Home() {
     ${pageHeader({
       title: 'Projects',
       lede: 'A project is a GitHub repository genie builds on. Open one to see its board, or connect a new one.',
-      actions: html`<a href="/projects/new" class=${cn(buttonClass({ size: 'sm' }), 'no-underline')}>Connect a repo</a>`,
+      actions: html`<a href="/dashboard/projects/new" class=${cn(buttonClass({ size: 'sm' }), 'no-underline')}>Connect a repo</a>`,
     })}
     ${rows.length === 0
-      ? sectionEmpty('No projects yet', { text: 'Connect a repository to get a board.', href: '/projects/new' })
+      ? sectionEmpty('No projects yet', { text: 'Connect a repository to get a board.', href: '/dashboard/projects/new' })
       : html`
         <ul class=${ledgerClass()}>
           ${rows.map(({ project, counts, total }) => {
@@ -26,7 +26,7 @@ export default async function Home() {
             return html`
               <li class=${cn(ledgerRowClass(), 'sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1.8fr)_max-content]')}>
                 <h2 class="m-0 flex min-w-0 items-baseline gap-2 text-body font-semibold">
-                  <a href="/projects/${project.id}" class="truncate text-foreground no-underline">${project.name}</a>
+                  <a href="/dashboard/projects/${project.id}" class="truncate text-foreground no-underline">${project.name}</a>
                   <span class="shrink-0 font-mono text-label font-normal uppercase tracking-[0.12em] text-muted-foreground">${project.githubRepo}</span>
                 </h2>
                 <p class="m-0 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-meta text-muted-foreground">

@@ -14,5 +14,5 @@ export async function retryTask(formData: FormData): Promise<ActionResult<Task>>
   if (!row) return { success: false, error: 'Unknown task.', status: 404 };
   await recordEvent(row.id, 'status', 'Retrying');
   notifyBoard(row);
-  return { success: true, data: row, redirect: `/projects/${row.projectId}/tasks/${row.id}` };
+  return { success: true, data: row, redirect: `/dashboard/projects/${row.projectId}/tasks/${row.id}` };
 }

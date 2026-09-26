@@ -31,5 +31,5 @@ export async function createTask(input: CreateTaskInput): Promise<ActionResult<T
   const [row] = await db.insert(tasks).values(input).returning();
   await recordEvent(row.id, 'status', 'Created in Todo');
   notifyBoard(row);
-  return { success: true, data: row, redirect: `/projects/${project.id}` };
+  return { success: true, data: row, redirect: `/dashboard/projects/${project.id}` };
 }
