@@ -4,7 +4,7 @@ import { buttonClass } from '#components/ui/button.ts';
 import { brandMark } from '#lib/design/logo.ts';
 import { shellStyles, themeScript } from '#lib/design/shell.ts';
 import { cn } from '#lib/utils/cn.ts';
-import { auth } from '#modules/auth/auth.server.ts';
+import { signedIn as readSignedIn } from '#modules/auth/queries/signed-in.server.ts';
 import '#components/theme-toggle.ts';
 
 const TITLE = 'Genie - write the task, review the pull request';
@@ -33,10 +33,11 @@ const navLink = 'whitespace-nowrap rounded-sm px-3 py-1.5 text-body text-muted-f
 // The public site's root layout: the same tokens and theme as the product,
 // with its own chrome. The dashboard link is a full page load (data-no-router)
 // because the product is a different shell. Whether it reads Sign in or
-// Dashboard is a cookie read (auth(), no database), which also keeps every
-// site page out of the shared HTML cache, as a per-visitor header must be.
+// Dashboard is a cookie read (no database) through a 'use server' query,
+// since the layout ships to the browser; reading the session also keeps
+// every site page out of the shared HTML cache, as a per-visitor header must be.
 export default async function SiteLayout({ children }: LayoutProps) {
-  const signedIn = Boolean((await auth())?.user);
+  const signedIn = await readSignedIn();
   return html`
     ${themeScript(cspNonce())}
     <meta name="viewport" content="width=device-width, initial-scale=1">

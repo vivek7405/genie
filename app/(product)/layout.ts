@@ -4,7 +4,8 @@ import { buttonClass } from '#components/ui/button.ts';
 import { brandMark } from '#lib/design/logo.ts';
 import { shellStyles, themeScript } from '#lib/design/shell.ts';
 import { cn } from '#lib/utils/cn.ts';
-import { currentUser } from '#modules/auth/queries/current-user.server.ts';
+import { account } from '#modules/auth/queries/account.server.ts';
+import type { Account } from '#modules/auth/queries/account.server.ts';
 import '#components/theme-toggle.ts';
 
 export const metadata = { title: { default: 'genie', template: '%s · genie' }, icons: '/public/favicon.svg' };
@@ -21,7 +22,7 @@ export const metadata = { title: { default: 'genie', template: '%s · genie' }, 
 // someone signed in; a signed-out visitor (a gate redirect in flight, a 404
 // under /dashboard) gets the mark and a way to sign in.
 export default async function ProductLayout({ children, url }: LayoutProps) {
-  const me = await currentUser();
+  const me = await account();
   const path = new URL(url ?? 'http://localhost/').pathname;
   const nav = me
     ? [{ href: '/dashboard', label: 'Projects', on: path === '/dashboard' || path.startsWith('/dashboard/projects') }]
@@ -59,7 +60,7 @@ export default async function ProductLayout({ children, url }: LayoutProps) {
 }
 
 /** The signed-in person: avatar or initials as the trigger, login and sign out inside. */
-function accountMenu(me: { login: string; name: string | null; avatarUrl: string | null }) {
+function accountMenu(me: Account) {
   return html`
     <details class="relative" data-account-menu>
       <summary class="flex size-8 cursor-pointer list-none items-center justify-center overflow-hidden rounded-full border border-border bg-muted font-mono text-label uppercase text-foreground [&::-webkit-details-marker]:hidden" aria-label=${`Account: ${me.login}`}>
