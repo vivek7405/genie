@@ -25,9 +25,26 @@ export const PR_COMMENT_PREFIX = /^\s*GENIE:\s*/;
 export interface SyncSummary { imported: number; published: number; verdicts: number; reasserted: number }
 
 // `running`, `lastRunAt` and `lastError` are what GET /health reports (M6).
-interface SyncState { timer: ReturnType<typeof setInterval> | null; running: boolean; pausedUntil: number; lastRunAt: Date | null; lastError: string | null }
+// `pending` holds the debounce timer of each project a webhook asked to sync;
+// `due` the projects whose timer fired while a pass was running.
+interface SyncState {
+  timer: ReturnType<typeof setInterval> | null;
+  running: boolean;
+  pausedUntil: number;
+  lastRunAt: Date | null;
+  lastError: string | null;
+  pending: Map<string, ReturnType<typeof setTimeout>>;
+  due: Set<string>;
+}
 const g = globalThis as unknown as { __genie_sync?: SyncState };
-const state: SyncState = (g.__genie_sync ??= { timer: null, running: false, pausedUntil: 0, lastRunAt: null, lastError: null });
+const state: SyncState = (g.__genie_sync ??= { timer: null, running: false, pausedUntil: 0, lastRunAt: null, lastError: null, pending: new Map(), due: new Set() });
+// A dev reload keeps the object from the previous load, which may predate these two.
+state.pending ??= new Map();
+state.due ??= new Set();
+
+// How long a webhook-requested sync waits for the rest of its burst (GitHub
+// delivers `labeled` and `opened` for one new issue within the same second).
+export const REQUEST_SYNC_DEBOUNCE_MS = 2_000;
 
 export interface SyncStatus { lastRunAt: Date | null; lastError: string | null; running: boolean }
 
@@ -188,8 +205,42 @@ export async function syncAll(): Promise<void> {
   if (state.running || Date.now() < state.pausedUntil) return;
   state.running = true;
   state.lastError = null;
+  // A full pass covers every project a webhook marked due meanwhile.
+  state.due.clear();
   try {
     for (const project of await db.query.projects.findMany()) await syncProject(project);
+  } finally {
+    state.running = false;
+    state.lastRunAt = new Date();
+  }
+  void runDue();
+}
+
+// A webhook asks for one project to sync now (the poll stays the fallback).
+// Requests for the same project inside the debounce window coalesce into one
+// run; a run that lands while a pass is in flight waits for it and follows
+// straight after, so one project never syncs twice at once.
+export function requestSync(projectId: string, opts: { debounceMs?: number } = {}): void {
+  if (state.pending.has(projectId)) return;
+  const timer = setTimeout(() => {
+    state.pending.delete(projectId);
+    state.due.add(projectId);
+    void runDue();
+  }, opts.debounceMs ?? REQUEST_SYNC_DEBOUNCE_MS);
+  timer.unref?.();
+  state.pending.set(projectId, timer);
+}
+
+async function runDue(): Promise<void> {
+  if (state.running || state.due.size === 0 || Date.now() < state.pausedUntil) return;
+  state.running = true;
+  try {
+    while (state.due.size > 0) {
+      const [id] = state.due;
+      state.due.delete(id);
+      const project = await db.query.projects.findFirst({ where: { id } });
+      if (project) await syncProject(project);
+    }
   } finally {
     state.running = false;
     state.lastRunAt = new Date();
@@ -208,4 +259,7 @@ export function startSync(opts: { intervalMs?: number } = {}): void {
 export function stopSync(): void {
   if (state.timer) clearInterval(state.timer);
   state.timer = null;
+  for (const timer of state.pending.values()) clearTimeout(timer);
+  state.pending.clear();
+  state.due.clear();
 }
