@@ -59,7 +59,7 @@ const RULES: [string, string][] = [
   ],
   [
     'Ownership is by column',
-    'A person owns Todo and the verdict out of Review. Genie owns Plan, In progress, and the Review state itself. On every poll the sync moves a card back to where Genie says it is when a human dragged it somewhere Genie owns, and a genie-labelled issue found in a Genie-owned column with no task behind it is somebody else’s work in flight and is left alone.',
+    'A person owns Todo, Review and Done: a card in Review has been built and self-reviewed and is waiting for a verdict only a person can give. Genie owns Plan and In progress. On every poll the sync moves a card back to where Genie says it is when a human dragged it somewhere Genie owns, and a genie-labelled issue found in a Genie-owned column with no task behind it is somebody else’s work in flight and is left alone.',
   ],
   [
     'The agent never runs on your machine or on Genie’s',
@@ -86,7 +86,7 @@ const STAGES: [string, string][] = [
 const OWNERSHIP: [string, string, string][] = [
   ['Todo', 'you', 'Nothing. A card here is yours to write, move or delete, and Genie reads it when it is time to claim it.'],
   ['Plan, In progress', 'Genie', 'Re-assert. A card a person dragged elsewhere is moved back to where Genie’s database says it is.'],
-  ['Review', 'Genie, awaiting you', 'Read the verdict. Done applies Approve, In progress applies Request changes with your newest comment as the feedback, anything earlier is a failed mirror and is moved back.'],
+  ['Review', 'you', 'Read the verdict. Done applies Approve, In progress applies Request changes with your newest comment as the feedback, anything earlier is a failed mirror and is moved back.'],
   ['Done', 'you', 'Nothing. A merged task stays where it is.'],
 ];
 

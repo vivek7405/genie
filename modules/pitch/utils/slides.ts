@@ -26,9 +26,9 @@ export const SLIDES: readonly Slide[] = [
   {
     id: 'solution',
     kicker: '2 · How it solves the problem',
-    title: 'The tracker is the interface; genie owns the middle',
+    title: 'The tracker is the interface; Genie owns the middle two columns',
     points: [
-      'Humans own Todo and the verdict. genie owns Planning, In progress and Ready for review, and never overwrites a human-owned state.',
+      'You own Todo, Review and Done. Genie owns Plan and In progress, and never overwrites a column you own.',
       'One state machine in SQLite is the queue, the audit log and the board. Every step is a line in the card’s activity feed.',
       'The deliverable is a real branch, a real pull request and a real preview environment, not a chat transcript.',
       'Works from either side: the Genie kanban or the GitHub project board, kept in sync.',
