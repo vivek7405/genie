@@ -73,7 +73,7 @@ export default async function TaskCard({ params, actionData }: CardProps) {
 
           <section>
             ${sectionHeading('Activity', 'Every step genie took on this card, newest last.')}
-            ${panel(html`
+            ${panel(events.length === 0 ? html`<p class="m-0 text-meta text-muted-foreground">Nothing yet. The worker writes here as it goes.</p>` : html`
               <ol class="m-0 grid list-none gap-1.5 p-0 font-mono text-meta">
                 ${events.map((e) => html`
                   <li class=${cn('flex gap-3', e.kind === 'error' ? 'text-destructive' : e.kind === 'status' ? 'text-foreground' : 'text-muted-foreground')}>
