@@ -7,8 +7,8 @@ import { SLIDES } from '#modules/pitch/utils/slides.ts';
 
 const app = await createRequestHandler({ appDir, dev: true });
 
-test('the deck covers the six points the brief asks for, in order', () => {
-  assert.deepEqual(SLIDES.map((s) => s.id), ['problem', 'demo', 'solution', 'ai', 'choices', 'next']);
+test('the deck covers the five points the brief asks for, in order', () => {
+  assert.deepEqual(SLIDES.map((s) => s.id), ['problem', 'solution', 'ai', 'choices', 'next']);
   for (const slide of SLIDES) assert.ok(slide.points.length >= 3, `${slide.id} has substance`);
 });
 

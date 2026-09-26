@@ -1,6 +1,6 @@
 // The pitch deck content as data, in the order the judging brief asks for it:
-// the problem (one slide), the demo, how it solves the problem, how AI is
-// used, key technical choices, what comes next. Browser-safe: no server
+// the problem (one slide), how it solves the problem, how AI is used, key
+// technical choices, what comes next. The demo itself is live, not a slide. Browser-safe: no server
 // imports, so a test can assert the six topics without rendering.
 export interface Slide {
   id: string;
@@ -24,32 +24,20 @@ export const SLIDES: readonly Slide[] = [
     ],
   },
   {
-    id: 'demo',
-    kicker: '2 · The prototype',
-    title: 'genie: an async project manager that ships the card',
-    lead: 'Connect a repo and its GitHub project board. Write a task. Come back to a pull request with a live preview URL.',
-    points: [
-      'Connect: a GitHub repo, its project board, and the genie label that opts a card in.',
-      'Create a task in genie or on the GitHub board. It lands in Todo.',
-      'Watch it move: Todo, Planning, In progress, Ready for review. The board updates live.',
-      'Review the PR and click the preview. Approve to merge; pilots deploys the default branch.',
-    ],
-    footnote: 'Live demo on the board.',
-  },
-  {
     id: 'solution',
-    kicker: '3 · How it solves the problem',
+    kicker: '2 · How it solves the problem',
     title: 'The tracker is the interface; genie owns the middle',
     points: [
       'Humans own Todo and the verdict. genie owns Planning, In progress and Ready for review, and never overwrites a human-owned state.',
       'One state machine in SQLite is the queue, the audit log and the board. Every step is a line in the card’s activity feed.',
       'The deliverable is a real branch, a real pull request and a real preview environment, not a chat transcript.',
-      'Works from either side: the genie kanban or the GitHub project board, kept in sync.',
+      'Works from either side: the Genie kanban or the GitHub project board, kept in sync.',
     ],
+    footnote: 'Live demo on the board.',
   },
   {
     id: 'ai',
-    kicker: '4 · How AI is used',
+    kicker: '3 · How AI is used',
     title: 'Claude Code, headless, inside a throwaway microVM per task',
     points: [
       'Each task gets its own pilots sandbox (Firecracker microVM) restored from a base checkpoint with git, gh and Claude Code preinstalled.',
@@ -60,7 +48,7 @@ export const SLIDES: readonly Slide[] = [
   },
   {
     id: 'choices',
-    kicker: '5 · Key technical choices',
+    kicker: '4 · Key technical choices',
     title: 'Two open-source primitives and a strict credential rule',
     points: [
       'WebJs: a buildless, server-first web framework. Pages render as HTML, islands hydrate where needed, frames and WebSockets give the live board with almost no client code.',
@@ -71,7 +59,7 @@ export const SLIDES: readonly Slide[] = [
   },
   {
     id: 'next',
-    kicker: '6 · What we would build next',
+    kicker: '5 · What we would build next',
     title: 'From one task at a time to a team’s backlog',
     points: [
       'Review feedback loop: PR review comments become revise runs on the same branch.',

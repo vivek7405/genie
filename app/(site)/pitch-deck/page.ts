@@ -4,7 +4,7 @@ import '#modules/pitch/components/deck-nav.ts';
 
 export const metadata = { title: 'Pitch deck' };
 
-// Six full-height slides for the 10 minute judging slot, in the order the
+// Five full-height slides for the 10 minute judging slot, in the order the
 // brief asks for them. Arrow keys and the corner buttons move between them.
 export default function PitchDeck() {
   return html`
