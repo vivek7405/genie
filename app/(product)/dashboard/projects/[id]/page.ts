@@ -1,7 +1,7 @@
 import { html, notFound } from '@webjsdev/core';
 import type { PageProps } from '@webjsdev/core';
 import { buttonClass } from '#components/ui/button.ts';
-import { pageHeader } from '#lib/utils/ui.ts';
+import { errorAlert, pageHeader } from '#lib/utils/ui.ts';
 import { cn } from '#lib/utils/cn.ts';
 import { getProject } from '#modules/projects/queries/get-project.server.ts';
 import { listBoard } from '#modules/tasks/queries/list-board.server.ts';
@@ -34,6 +34,7 @@ export default async function Board({ params }: PageProps<'/dashboard/projects/[
     })}
 
     <webjs-frame id="board" class="block">
+      ${project.syncError ? errorAlert(html`GitHub sync: ${project.syncError}`) : ''}
       <div class="grid gap-3 md:grid-cols-5">
         ${columns.map((column) => html`
           <section class="flex min-h-48 flex-col gap-2 rounded-md bg-muted/60 p-2.5" aria-label=${column.label}>

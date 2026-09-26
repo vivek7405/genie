@@ -1,6 +1,8 @@
 // Drives the real request pipeline: connect a project through the form, add a
 // task, read the board and the card. Runs against its own migrated temp
-// database (test/helpers/db.ts).
+// database (test/helpers/db.ts) and the offline GitHub transport it installs,
+// so the board resolve and the issue publish fail and are reported, never
+// fatal.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { appDir } from '../helpers/db.ts';
@@ -35,6 +37,8 @@ test('connect a project, add a task, see it in Todo, open its card', async () =>
   const boardHtml = await board.text();
   assert.match(boardHtml, /Review/);
   assert.match(boardHtml, /<webjs-frame id="board"/);
+  assert.match(boardHtml, /GitHub sync: /, 'the board resolve failed offline and the page says so');
+  assert.match(boardHtml, /503/);
 
   // submitForm posts only the fields it is given (plus the action identity), so
   // the hidden projectId a browser would carry is passed explicitly.
@@ -55,6 +59,7 @@ test('connect a project, add a task, see it in Todo, open its card', async () =>
   assert.equal(card.status, 200);
   const cardHtml = await card.text();
   assert.match(cardHtml, /Created in Todo/);
+  assert.match(cardHtml, /Could not open the GitHub issue/);
   assert.match(cardHtml, /<live-refresh/);
 });
 
@@ -64,6 +69,12 @@ test('an empty title re-renders the board at 422', async () => {
   const bad = await submitForm(app.handle, `${boardPath}/tasks/new`, { projectId: boardPath.split('/').pop()!, title: '' });
   assert.equal(bad.status, 422);
   assert.match(await bad.text(), /Give the task a title/);
+});
+
+test('a project without a board shows no sync message', async () => {
+  const connected = await submitForm(app.handle, '/dashboard/projects/new', { githubRepo: `${repo}-c` });
+  const boardHtml = await (await testRequest(app.handle, connected.headers.get('location')!)).text();
+  assert.doesNotMatch(boardHtml, /GitHub sync: /);
 });
 
 test('a missing project is a 404', async () => {
