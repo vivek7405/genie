@@ -58,6 +58,7 @@ test('every credential is a secret:// reference, and nothing else is', () => {
     ['GITHUB_APP_ID', 'github_app_id'],
     ['GITHUB_APP_SLUG', 'github_app_slug'],
     ['GITHUB_APP_PRIVATE_KEY', 'github_app_private_key'],
+    ['GITHUB_APP_WEBHOOK_SECRET', 'github_app_webhook_secret'],
     ['GH_TOKEN', 'github_token'],
     ['AUTH_SECRET', 'auth_secret'],
     ['AUTH_GITHUB_ID', 'auth_github_id'],
