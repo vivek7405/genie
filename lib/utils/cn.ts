@@ -92,6 +92,11 @@ function GROUPS(): Array<[RegExp, string]> {
     [/^text-shadow-/, 'text-shadow-color'],
     // Font size: explicit list of Tailwind size scale.
     [/^text-(xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl)$/, 'text-size'],
+    // This app's own five type steps (public/input.css @theme). Without this
+    // line each of them reads as a COLOUR and evicts text-primary-foreground
+    // or text-muted-foreground from the same call, which is how a filled
+    // badge ended up inheriting the page ink in dark mode.
+    [/^text-(title|heading|body|meta|label)$/, 'text-size'],
     // Alignment, wrapping, and overflow are three more properties under the same
     // prefix. Each was previously excluded from text-color by a lookahead and then
     // matched nothing at all, so two alignments never collapsed.

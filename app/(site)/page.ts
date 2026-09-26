@@ -38,7 +38,7 @@ function heroFeed() {
     <div class=${cn(cardClass(), 'overflow-hidden')}>
       <div class="flex items-center gap-3 border-b border-border px-4 py-3">
         <span class="min-w-0 truncate text-body font-semibold">Add a /about page with the team</span>
-        <span class=${cn(badgeClass(), VOICE, 'ml-auto shrink-0')}>Review</span>
+        <span class=${cn(badgeClass({ voice: true }), 'ml-auto shrink-0')}>Review</span>
       </div>
       <ol class="m-0 grid list-none gap-1.5 p-4 font-mono text-meta">
         ${lines.map(([t, m, k]) => html`
