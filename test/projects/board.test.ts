@@ -57,6 +57,9 @@ test('connect a project, add a task, see it in Todo, open its card', async () =>
   // The masthead's "New task" link also matches /tasks/, so pick a card link.
   const cardHref = [...after.matchAll(/href="(\/dashboard\/projects\/[^"]+\/tasks\/[^"]+)"/g)].map((m) => m[1]).find((h) => !h.endsWith('/tasks/new'));
   assert.ok(cardHref, 'the card links to its detail page');
+  // The card sits inside the board frame; without _top the client router would
+  // scope the click to the frame and only the URL would change.
+  assert.match(after, new RegExp(`href="${cardHref}" data-webjs-frame="_top"`), 'the card breaks out of the board frame');
 
   const card = await testRequest(app.handle, cardHref!, me);
   assert.equal(card.status, 200);

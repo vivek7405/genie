@@ -6,7 +6,10 @@ import type { Task } from '../../types.ts';
 import { isSystemOwned } from '../state-machine.ts';
 import { clock, isDeferred } from './clock.ts';
 
-// One card on the board. The whole card is the link to its detail page.
+// One card on the board. The whole card is the link to its detail page. The
+// card sits inside the board's <webjs-frame>, so without data-webjs-frame="_top"
+// the client router would scope the click to that frame: the detail response
+// carries no board frame, the swap is skipped, and only the URL would change.
 export function taskCard(task: Task) {
   const waiting = !task.error && isDeferred(task);
   const busy = isSystemOwned(task) && task.status !== 'todo' && !waiting;
@@ -19,7 +22,7 @@ export function taskCard(task: Task) {
   if (task.previewUrl) meta.push(html`<span>preview ready</span>`);
   if (task.status === 'done') meta.push(html`<span>Merged</span>`);
   return html`
-    <a href="/dashboard/projects/${task.projectId}/tasks/${task.id}"
+    <a href="/dashboard/projects/${task.projectId}/tasks/${task.id}" data-webjs-frame="_top"
        class=${cn(cardClass(), 'block px-3.5 py-3 no-underline transition-colors hover:border-border-strong', task.error && 'border-destructive/50')}>
       <span class="flex items-start gap-2">
         <span class="min-w-0 flex-1 text-body font-medium leading-snug text-foreground">${task.title}</span>
