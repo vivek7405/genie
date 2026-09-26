@@ -178,8 +178,24 @@
    CSS custom properties, so they resolve with JavaScript disabled); these
    @theme inline maps turn them into utilities (bg-primary, text-display, ...). */
 @theme inline {
+  /* Five type steps, and the only five: title, heading, body, meta, label.
+     A closed set forces the question "which of the five is this" at every
+     call site. text-label is the instrument-panel voice: always paired with
+     font-mono and uppercase tracking. */
+  --text-title: 1.5rem;
+  --text-title--line-height: 2rem;
+  --text-heading: 1.125rem;
+  --text-heading--line-height: 1.75rem;
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.6;
+  --text-meta: 0.8125rem;
+  --text-meta--line-height: 1.25rem;
+  --text-label: 0.6875rem;
+  --text-label--line-height: 1rem;
   --color-border-strong: var(--border-strong);
   --color-primary-tint: var(--primary-tint);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
   --font-sans:  var(--font-sans);
   --font-serif: var(--font-serif);
   --font-mono:  var(--font-mono);

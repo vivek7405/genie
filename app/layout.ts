@@ -1,67 +1,115 @@
-import { html, asset } from '@webjsdev/core';
+import { html, asset, cspNonce } from '@webjsdev/core';
 import type { LayoutProps } from '@webjsdev/core';
+import '#components/theme-toggle.ts';
 
-export const metadata = { title: 'genie', icons: '/public/favicon.svg' };
+export const metadata = { title: { default: 'genie', template: '%s · genie' }, icons: '/public/favicon.svg' };
 
-// Root layout: the only file that writes the document shell. Tokens are
-// declared once with light-dark() so the OS colour scheme picks the side;
-// public/input.css maps them into Tailwind (bg-background, text-foreground).
-export default function RootLayout({ children }: LayoutProps) {
+// Root layout: the only file that writes the document shell. It owns the
+// design tokens, the theme, and the app chrome: one fixed, opaque header.
+// Every colour is declared once with light-dark(), and public/input.css maps
+// the token names into Tailwind utilities (bg-background, text-muted-foreground).
+export default function RootLayout({ children, url }: LayoutProps) {
+  const path = new URL(url ?? 'http://localhost/').pathname;
+  const nonce = cspNonce();
+  const nav = [
+    { href: '/', label: 'Projects', on: path === '/' || path.startsWith('/projects') },
+    { href: '/pitch-deck', label: 'Pitch deck', on: path.startsWith('/pitch-deck') },
+  ];
   return html`
+    <script nonce="${nonce}">
+      // Apply the saved theme before first paint so a dark page never flashes
+      // light. The tokens follow color-scheme, which [data-theme] forces; the
+      // .dark class is for the kit's dark: variants. (No backticks in here.)
+      (function () {
+        try {
+          var mq = window.matchMedia('(prefers-color-scheme: dark)');
+          function apply() {
+            var t = null;
+            try { t = localStorage.getItem('genie_theme'); } catch (_) {}
+            var el = document.documentElement;
+            if (t === 'light' || t === 'dark') el.dataset.theme = t;
+            else delete el.dataset.theme;
+            el.classList.toggle('dark', t === 'dark' || (t !== 'light' && mq.matches));
+          }
+          apply();
+          mq.addEventListener('change', apply);
+        } catch (_) {}
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light dark">
     <link rel="stylesheet" href=${asset('/public/tailwind.css')}>
     <style>
       :root {
-        --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-        --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
-        --radius: 0.625rem;
-        --header-h: 57px;
+        --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+        --header-h: 56px;
+        /* Square-ish surfaces: a panel reads as an instrument, not a consumer app. */
+        --radius: 0.375rem;
         color-scheme: light dark;
-        --background:           light-dark(oklch(0.985 0.004 260), oklch(0.13 0.012 260));
-        --foreground:           light-dark(oklch(0.21 0.02 260), oklch(0.95 0.008 260));
-        --card:                 light-dark(oklch(1 0 0), oklch(0.18 0.014 260));
-        --card-foreground:      light-dark(oklch(0.21 0.02 260), oklch(0.95 0.008 260));
-        --popover:              light-dark(oklch(1 0 0), oklch(0.18 0.014 260));
-        --popover-foreground:   light-dark(oklch(0.21 0.02 260), oklch(0.95 0.008 260));
-        --primary:              light-dark(oklch(0.52 0.19 275), oklch(0.78 0.14 275));
-        --primary-foreground:   light-dark(oklch(1 0 0), oklch(0.13 0.012 260));
-        --secondary:            light-dark(oklch(0.95 0.008 260), oklch(0.24 0.016 260));
-        --secondary-foreground: light-dark(oklch(0.21 0.02 260), oklch(0.95 0.008 260));
-        --muted:                light-dark(oklch(0.955 0.006 260), oklch(0.22 0.014 260));
-        --muted-foreground:     light-dark(oklch(0.48 0.02 260), oklch(0.72 0.014 260));
-        --accent:               light-dark(oklch(0.95 0.008 260), oklch(0.24 0.016 260));
-        --accent-foreground:    light-dark(oklch(0.21 0.02 260), oklch(0.95 0.008 260));
-        --destructive:          light-dark(oklch(0.58 0.22 27), oklch(0.70 0.19 22));
-        --destructive-foreground: light-dark(oklch(1 0 0), oklch(0.13 0.012 260));
-        --border:               light-dark(oklch(0.90 0.008 260), oklch(0.28 0.016 260));
-        --input:                light-dark(oklch(0.90 0.008 260), oklch(0.28 0.016 260));
-        --ring:                 light-dark(oklch(0.62 0.17 275), oklch(0.78 0.14 275));
-        --primary-tint: color-mix(in oklch, var(--ring) 22%, transparent);
+
+        /* The palette: ink on cool paper, a violet accent used only for the
+           primary action, live state and the focus ring. It never tints a
+           panel or a heading. */
+        --background:             light-dark(#fafaf8, #101113);
+        --card:                   light-dark(#ffffff, #17181c);
+        --card-foreground:        light-dark(#1a1b1f, #e8e7e3);
+        --popover:                light-dark(#ffffff, #17181c);
+        --popover-foreground:     light-dark(#1a1b1f, #e8e7e3);
+        --foreground:             light-dark(#1a1b1f, #e8e7e3);
+        --muted:                  light-dark(#f0efeb, #1d1f24);
+        --muted-foreground:       light-dark(#5d6069, #9a9ea8);
+        --secondary:              light-dark(#eeede9, #22242a);
+        --secondary-foreground:   light-dark(#1a1b1f, #e8e7e3);
+        --accent:                 light-dark(#eeede9, #22242a);
+        --accent-foreground:      light-dark(#1a1b1f, #e8e7e3);
+        --primary:                light-dark(#5b4dff, #8b80ff);
+        --primary-foreground:     light-dark(#ffffff, #0f0e1a);
+        --primary-tint:           light-dark(#e9e6ff, #221f3d);
+        --destructive:            light-dark(#b8391f, #ff7a5c);
+        --destructive-foreground: light-dark(#ffffff, #12141a);
+        --success:                light-dark(#3f7d1a, #9be36a);
+        --warning:                light-dark(#9a5a04, #fbbf24);
+        --border:                 light-dark(#e3e1db, #262930);
+        --border-strong:          light-dark(#cbc8bf, #383c46);
+        --input:                  light-dark(#cbc8bf, #383c46);
+        --ring:                   light-dark(#5b4dff, #8b80ff);
       }
+      :root[data-theme='light'] { color-scheme: light; }
+      :root[data-theme='dark'] { color-scheme: dark; }
       html, body { margin: 0; }
+      html { scrollbar-gutter: stable; }
       body {
         padding-top: var(--header-h);
         background: var(--background);
         color: var(--foreground);
-        font: 15px/1.55 var(--font-sans);
+        font: 15px/1.6 var(--font-sans);
         -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
       }
-      :focus-visible { outline: 2px solid color-mix(in oklab, var(--ring) 50%, transparent); outline-offset: 2px; }
+      h1, h2, h3 { letter-spacing: -0.02em; text-wrap: balance; }
+      p { text-wrap: pretty; }
+      a { color: inherit; text-decoration-color: var(--border-strong); text-underline-offset: 3px; }
+      a:hover { text-decoration-color: currentColor; }
+      live-refresh { display: inline-flex; }
     </style>
-    <header class="fixed inset-x-0 top-0 z-20 h-14 border-b border-border bg-background/80 backdrop-blur-md">
-      <div class="mx-auto flex h-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
-        <a href="/" class="inline-flex items-center gap-2 text-foreground no-underline">
-          <span class="grid size-7 place-items-center rounded-lg bg-primary text-primary-foreground text-sm font-bold">g</span>
-          <span class="font-semibold tracking-tight">genie</span>
+    <header class="fixed inset-x-0 top-0 z-40 border-b border-border bg-background">
+      <div class="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:px-6">
+        <a href="/" class="flex shrink-0 items-center gap-2 font-mono text-body font-semibold tracking-tight text-foreground no-underline">
+          <span class="grid size-6 place-items-center rounded-sm bg-foreground text-background text-label font-bold" aria-hidden="true">g</span>
+          genie
         </a>
-        <nav class="flex items-center gap-4 text-sm" aria-label="Primary">
-          <a href="/" class="text-muted-foreground no-underline transition-colors hover:text-foreground">Projects</a>
-          <a href="https://github.com/vivek7405/genie" target="_blank" rel="noopener" class="text-muted-foreground no-underline transition-colors hover:text-foreground">GitHub</a>
+        <nav class="ml-4 flex items-center gap-0.5" aria-label="Primary">
+          ${nav.map((n) => html`<a href=${n.href} aria-current=${n.on ? 'page' : 'false'}
+            class="whitespace-nowrap rounded-sm px-3 py-1.5 text-body no-underline transition-colors ${n.on ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}">${n.label}</a>`)}
         </nav>
+        <div class="ml-auto flex items-center gap-2">
+          <a href="https://github.com/vivek7405/genie" target="_blank" rel="noopener" class="hidden text-meta text-muted-foreground no-underline hover:text-foreground sm:inline">GitHub</a>
+          <theme-toggle></theme-toggle>
+        </div>
       </div>
     </header>
-    <main class="mx-auto min-h-[calc(100dvh-var(--header-h))] max-w-7xl px-4 py-8 sm:px-6">
+    <main class="mx-auto min-h-[calc(100dvh-var(--header-h))] max-w-6xl px-4 py-8 sm:px-6">
       ${children}
     </main>
   `;

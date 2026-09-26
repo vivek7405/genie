@@ -10,18 +10,22 @@ import { testRequest, submitForm } from '@webjsdev/server/testing';
 const app = await createRequestHandler({ appDir, dev: true });
 const repo = `harness/board-${Date.now()}`;
 
-test('the home page renders and validates the connect form', async () => {
+test('the home page lists projects and links to the connect page, which validates', async () => {
   const home = await testRequest(app.handle, '/');
   assert.equal(home.status, 200);
-  assert.match(await home.text(), /Connect a repo/);
+  assert.match(await home.text(), /href="\/projects\/new"/);
 
-  const bad = await submitForm(app.handle, '/', { githubRepo: 'not a repo' });
+  const page = await testRequest(app.handle, '/projects/new');
+  assert.equal(page.status, 200);
+  assert.match(await page.text(), /Connect a repository/);
+
+  const bad = await submitForm(app.handle, '/projects/new', { githubRepo: 'not a repo' });
   assert.equal(bad.status, 422);
   assert.match(await bad.text(), /owner\/name form/);
 });
 
 test('connect a project, add a task, see it in Todo, open its card', async () => {
-  const connected = await submitForm(app.handle, '/', { githubRepo: repo, githubProjectNumber: '11' });
+  const connected = await submitForm(app.handle, '/projects/new', { githubRepo: repo, githubProjectNumber: '11' });
   assert.equal(connected.status, 303);
   const boardPath = connected.headers.get('location');
   assert.ok(boardPath?.startsWith('/projects/'), `redirects to the board, got ${boardPath}`);
@@ -35,13 +39,16 @@ test('connect a project, add a task, see it in Todo, open its card', async () =>
   // submitForm posts only the fields it is given (plus the action identity), so
   // the hidden projectId a browser would carry is passed explicitly.
   const projectId = boardPath!.split('/').pop()!;
-  const added = await submitForm(app.handle, boardPath!, { projectId, title: 'Add an about page', description: 'Short and sweet' }, { match: 'name="title"' });
+  const added = await submitForm(app.handle, `${boardPath}/tasks/new`, { projectId, title: 'Add an about page', description: 'Short and sweet' });
   assert.equal(added.status, 303);
   assert.equal(added.headers.get('location'), boardPath);
 
   const after = await (await testRequest(app.handle, boardPath!)).text();
   assert.match(after, /Add an about page/);
-  const cardHref = after.match(/href="(\/projects\/[^"]+\/tasks\/[^"]+)"/)?.[1];
+  const home = await (await testRequest(app.handle, '/')).text();
+  assert.match(home, /1 todo/);
+  // The masthead's "New task" link also matches /tasks/, so pick a card link.
+  const cardHref = [...after.matchAll(/href="(\/projects\/[^"]+\/tasks\/[^"]+)"/g)].map((m) => m[1]).find((h) => !h.endsWith('/tasks/new'));
   assert.ok(cardHref, 'the card links to its detail page');
 
   const card = await testRequest(app.handle, cardHref!);
@@ -52,9 +59,9 @@ test('connect a project, add a task, see it in Todo, open its card', async () =>
 });
 
 test('an empty title re-renders the board at 422', async () => {
-  const connected = await submitForm(app.handle, '/', { githubRepo: `${repo}-b` });
+  const connected = await submitForm(app.handle, '/projects/new', { githubRepo: `${repo}-b` });
   const boardPath = connected.headers.get('location')!;
-  const bad = await submitForm(app.handle, boardPath, { projectId: boardPath.split('/').pop()!, title: '' }, { match: 'name="title"' });
+  const bad = await submitForm(app.handle, `${boardPath}/tasks/new`, { projectId: boardPath.split('/').pop()!, title: '' });
   assert.equal(bad.status, 422);
   assert.match(await bad.text(), /Give the task a title/);
 });

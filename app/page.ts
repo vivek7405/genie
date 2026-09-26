@@ -1,62 +1,45 @@
 import { html } from '@webjsdev/core';
 import { buttonClass } from '#components/ui/button.ts';
-import { cardClass } from '#components/ui/card.ts';
-import { inputClass } from '#components/ui/input.ts';
+import { ledgerClass, ledgerRowClass, pageHeader, sectionEmpty, liveDot } from '#lib/utils/ui.ts';
 import { cn } from '#lib/utils/cn.ts';
-import { pageHeading, lede, fieldError, formLabel } from '#lib/utils/ui.ts';
-import { connectProject } from '#modules/projects/actions/connect-project.server.ts';
-import { listProjects } from '#modules/projects/queries/list-projects.server.ts';
+import { listProjectSummaries } from '#modules/projects/queries/list-project-summaries.server.ts';
+import { labelOf } from '#modules/tasks/utils/state-machine.ts';
 
 export const metadata = { title: 'Projects' };
 
-interface HomeProps {
-  actionData?: { fieldErrors?: Record<string, string>; values?: Record<string, string> };
-}
-
-export default async function Home({ actionData }: HomeProps) {
-  const projects = await listProjects();
-  const errors = actionData?.fieldErrors ?? {};
-  const values = actionData?.values ?? {};
+// The list of connected projects: one row per project in a hairline ledger,
+// with what is happening on its board. The connect form has its own page.
+export default async function Home() {
+  const rows = await listProjectSummaries();
   return html`
-    ${pageHeading('Projects')}
-    ${lede('Connect a GitHub repository. Tasks you create for it are planned, built on a branch and shipped for review by genie.')}
-    <div class="grid gap-8 lg:grid-cols-[1fr_380px]">
-      <section aria-label="Connected projects">
-        ${projects.length === 0
-          ? html`<p class="rounded-xl border border-dashed border-border p-8 text-center text-muted-foreground">No projects yet. Connect one on the right.</p>`
-          : html`
-            <ul class="m-0 grid list-none gap-3 p-0 sm:grid-cols-2">
-              ${projects.map((p) => html`
-                <li>
-                  <a href="/projects/${p.id}" class=${cn(cardClass({ size: 'sm' }), 'block no-underline text-card-foreground transition-colors hover:border-ring')}>
-                    <span class="font-semibold">${p.name}</span>
-                    <span class="block text-sm text-muted-foreground">${p.githubRepo}${p.githubProjectNumber ? html` · board #${p.githubProjectNumber}` : ''}</span>
-                  </a>
-                </li>
-              `)}
-            </ul>
-          `}
-      </section>
-      <section class=${cardClass()} aria-label="Connect a repository">
-        <h2 class="m-0 text-base font-semibold">Connect a repo</h2>
-        <form action=${connectProject} class="mt-3 grid gap-3">
-          <div>
-            ${formLabel('GitHub repository', 'githubRepo')}
-            <input id="githubRepo" name="githubRepo" class=${inputClass()} placeholder="owner/name" value=${values.githubRepo ?? ''} required>
-            ${fieldError(errors.githubRepo)}
-          </div>
-          <div>
-            ${formLabel('Project board number (optional)', 'githubProjectNumber')}
-            <input id="githubProjectNumber" name="githubProjectNumber" class=${inputClass()} inputmode="numeric" placeholder="11" value=${values.githubProjectNumber ?? ''}>
-            ${fieldError(errors.githubProjectNumber)}
-          </div>
-          <div>
-            ${formLabel('Display name (optional)', 'name')}
-            <input id="name" name="name" class=${inputClass()} placeholder="Defaults to the repo name" value=${values.name ?? ''}>
-          </div>
-          <button type="submit" class=${buttonClass()}>Connect</button>
-        </form>
-      </section>
-    </div>
+    ${pageHeader({
+      title: 'Projects',
+      lede: 'A project is a GitHub repository genie builds on. Open one to see its board, or connect a new one.',
+      actions: html`<a href="/projects/new" class=${cn(buttonClass({ size: 'sm' }), 'no-underline')}>Connect a repo</a>`,
+    })}
+    ${rows.length === 0
+      ? sectionEmpty('No projects yet', { text: 'Connect a repository to get a board.', href: '/projects/new' })
+      : html`
+        <ul class=${ledgerClass()}>
+          ${rows.map(({ project, counts, total }) => {
+            const busy = counts.planning + counts.in_progress;
+            return html`
+              <li class=${cn(ledgerRowClass(), 'sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1.8fr)_max-content]')}>
+                <h2 class="m-0 flex min-w-0 items-baseline gap-2 text-body font-semibold">
+                  <a href="/projects/${project.id}" class="truncate text-foreground no-underline">${project.name}</a>
+                  <span class="shrink-0 font-mono text-label font-normal uppercase tracking-[0.12em] text-muted-foreground">${project.githubRepo}</span>
+                </h2>
+                <p class="m-0 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-meta text-muted-foreground">
+                  ${liveDot(busy > 0, busy > 0 ? 'genie is working' : 'idle')}
+                  ${total === 0 ? 'no tasks yet' : html`${counts.ready_for_review > 0 ? html`<span class="text-foreground">${counts.ready_for_review} ${labelOf('ready_for_review').toLowerCase()}</span>` : ''}
+                    ${busy > 0 ? html`<span>${busy} in flight</span>` : ''}
+                    <span>${counts.todo} todo</span><span>${counts.done} done</span>`}
+                </p>
+                <p class="m-0 text-meta text-muted-foreground sm:text-right">${project.githubProjectNumber ? html`board #${project.githubProjectNumber}` : 'no board linked'}</p>
+              </li>
+            `;
+          })}
+        </ul>
+      `}
   `;
 }

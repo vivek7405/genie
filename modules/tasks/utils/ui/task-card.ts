@@ -1,21 +1,27 @@
 import { html } from '@webjsdev/core';
 import { cardClass } from '#components/ui/card.ts';
 import { cn } from '#lib/utils/cn.ts';
+import { liveDot } from '#lib/utils/ui.ts';
 import type { Task } from '../../types.ts';
 import { isSystemOwned } from '../state-machine.ts';
 
 // One card on the board. The whole card is the link to its detail page.
 export function taskCard(task: Task) {
   const busy = isSystemOwned(task) && task.status !== 'todo';
+  const meta: unknown[] = [];
+  if (task.error) meta.push(html`<span class="text-destructive">failed on attempt ${task.attempt}</span>`);
+  else if (busy) meta.push(html`<span>working</span>`);
+  if (task.prNumber) meta.push(html`<span>PR #${task.prNumber}</span>`);
+  if (task.previewUrl) meta.push(html`<span>preview ready</span>`);
+  if (task.feedback && task.status === 'in_progress') meta.push(html`<span>revising</span>`);
   return html`
     <a href="/projects/${task.projectId}/tasks/${task.id}"
-       class=${cn(cardClass({ size: 'sm' }), 'block gap-1 no-underline text-card-foreground transition-colors hover:border-ring', task.error && 'border-destructive/60')}>
-      <span class="flex items-start justify-between gap-2">
-        <span class="font-medium leading-snug">${task.title}</span>
-        ${busy ? html`<span class="mt-1 size-2 shrink-0 animate-pulse rounded-full bg-primary" title="genie is working"></span>` : ''}
+       class=${cn(cardClass(), 'block px-3.5 py-3 no-underline transition-colors hover:border-border-strong', task.error && 'border-destructive/50')}>
+      <span class="flex items-start gap-2">
+        <span class="min-w-0 flex-1 text-body font-medium leading-snug text-foreground">${task.title}</span>
+        ${busy && !task.error ? liveDot(true, 'genie is working') : ''}
       </span>
-      ${task.error ? html`<span class="text-xs text-destructive">Failed, open to retry</span>` : ''}
-      ${task.previewUrl ? html`<span class="text-xs text-muted-foreground">Preview ready</span>` : ''}
+      ${meta.length ? html`<span class="mt-1.5 flex flex-wrap gap-x-3 font-mono text-label uppercase tracking-[0.12em] text-muted-foreground">${meta}</span>` : ''}
     </a>
   `;
 }

@@ -38,7 +38,7 @@ export class LiveRefresh extends WebComponent({ projectId: String, frame: String
   render() {
     const on = this.connected.get();
     return html`
-      <span class="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+      <span class="inline-flex items-center gap-1.5 font-mono text-label uppercase tracking-[0.12em] text-muted-foreground" title=${on ? 'Updates arrive without a reload' : 'Reconnecting'}>
         <span class="size-2 rounded-full ${on ? 'bg-primary' : 'bg-muted-foreground/40'}"></span>
         ${on ? 'live' : 'connecting'}
       </span>
