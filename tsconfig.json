@@ -30,6 +30,8 @@
     "test/**/*",
     "middleware.js",
     "middleware.ts",
+    "readiness.ts",
+    "scripts/**/*.ts",
     ".webjs/routes.d.ts"
   ],
   "exclude": [
