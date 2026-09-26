@@ -133,3 +133,88 @@ test('pilots() without an injected client and no PILOT_API_KEY throws the named 
   setPilotsClient(null);
   assert.throws(() => pilots(), /PILOT_API_KEY is not set/);
 });
+
+// createTaskMachine: reuse by name, fork of the stored base checkpoint,
+// a rebuild when the checkpoint is gone, the quota message.
+const { createTaskMachine } = pilotsModule;
+const { db } = await import('../helpers/db.ts');
+const { settings } = await import('#db/schema.server.ts');
+const { BASE_CHECKPOINT_KEY } = await import('#modules/pipeline/base-image.server.ts');
+
+const task = { id: '2f7c9d3e-1111-4222-8333-444444444444' };
+const project = { githubRepo: 'vivek7405/genie' };
+const machine = (id: string, name: string) => ({ id, name, url: `https://${name}.pilots.test`, state: 'running', vcpus: 1, mem_mib: 2048, knobs: {}, host_id: 'h', created_at: 0, last_activity: 0 });
+
+async function storeCheckpoint(id: string) {
+  await db.delete(settings);
+  await db.insert(settings).values({ key: BASE_CHECKPOINT_KEY, value: id });
+}
+
+test('createTaskMachine forks the stored base checkpoint by name', async () => {
+  await storeCheckpoint('ck_base');
+  fake.respond(200, []);
+  fake.respond(200, { id: 'ck_base', machine_id: 'm_base', durable: true });
+  fake.respond(201, { forks: [{ machine: machine('m_fork', 'genie-genie-2f7c9d3e') }] });
+  const m = await createTaskMachine(task, project);
+  assert.deepEqual(m, { id: 'm_fork', name: 'genie-genie-2f7c9d3e', url: 'https://genie-genie-2f7c9d3e.pilots.test' });
+  assert.deepEqual(fake.calls.map((c) => `${c.method} ${c.path}`), ['GET /v1/machines', 'GET /v1/checkpoints/ck_base', 'POST /v1/checkpoints/ck_base/fork']);
+  assert.deepEqual(fake.calls[2].body, { name: 'genie-genie-2f7c9d3e' });
+});
+
+test('createTaskMachine returns an existing machine of that name without forking', async () => {
+  await storeCheckpoint('ck_base');
+  fake.respond(200, [machine('m_old', 'genie-genie-2f7c9d3e'), machine('m_other', 'genie-other-2f7c9d3e')]);
+  const m = await createTaskMachine(task, project);
+  assert.equal(m.id, 'm_old');
+  assert.equal(fake.calls.length, 1);
+});
+
+test('createTaskMachine rebuilds the base once when the fork answers not found', async () => {
+  await storeCheckpoint('ck_gone');
+  fake.respond(200, []);
+  fake.respond(200, { id: 'ck_gone', machine_id: 'm_base', durable: true });
+  fake.respond(404, { error: 'no such checkpoint', code: 'not_found' });
+  // The rebuild: no base machine, create, resize, five steps, checkpoint, durable.
+  fake.respond(200, []);
+  fake.respond(201, machine('m_base2', 'genie-base'));
+  fake.respond(200, machine('m_base2', 'genie-base'));
+  for (let i = 0; i < 5; i++) fake.respond(200, execResponse());
+  fake.respond(201, { id: 'ck_new', machine_id: 'm_base2', durable: false });
+  fake.respond(200, { id: 'ck_new', machine_id: 'm_base2', durable: true });
+  fake.respond(201, { forks: [{ machine: machine('m_fork2', 'genie-genie-2f7c9d3e') }] });
+  const m = await createTaskMachine(task, project);
+  assert.equal(m.id, 'm_fork2');
+  const paths = fake.calls.map((c) => `${c.method} ${c.path}`);
+  assert.equal(paths.filter((p) => p === 'POST /v1/machines').length, 1);
+  assert.equal(paths.at(-1), 'POST /v1/checkpoints/ck_new/fork');
+  const stored = await db.query.settings.findFirst({ where: { key: BASE_CHECKPOINT_KEY } });
+  assert.equal(stored?.value, 'ck_new');
+});
+
+test('createTaskMachine turns a quota refusal into the named error', async () => {
+  await storeCheckpoint('ck_base');
+  fake.respond(200, []);
+  fake.respond(200, { id: 'ck_base', machine_id: 'm_base', durable: true });
+  fake.respond(429, { error: 'too many machines', code: 'quota_exceeded', quota: 'machines', limit: 20, used: 20 });
+  await assert.rejects(createTaskMachine(task, project), /^Error: pilots machine quota reached \(20\)\. Destroy finished task machines and retry\.$/);
+});
+
+test('createTaskMachine with GENIE_PILOTS_FORK=0 creates, resizes and installs Claude Code', async () => {
+  process.env.GENIE_PILOTS_FORK = '0';
+  try {
+    fake.respond(200, []);
+    fake.respond(201, machine('m_plain', 'genie-genie-2f7c9d3e'));
+    fake.respond(200, machine('m_plain', 'genie-genie-2f7c9d3e'));
+    fake.respond(200, execResponse('2.1.283 (Claude Code)'));
+    const m = await createTaskMachine(task, project);
+    assert.equal(m.id, 'm_plain');
+    assert.deepEqual(fake.calls.map((c) => `${c.method} ${c.path}`), ['GET /v1/machines', 'POST /v1/machines', 'POST /v1/machines/m_plain/resize', 'POST /v1/machines/m_plain/exec']);
+    assert.deepEqual(fake.calls[1].body, { name: 'genie-genie-2f7c9d3e', mem_mib: 2048, knobs: { idle_timeout: 3600 }, labels: { genie_task: task.id, genie: '1' } });
+    assert.deepEqual(fake.calls[2].body, { mem_mib: 2048 });
+    const install = fake.calls[3].body as { cmd: string; env?: unknown };
+    assert.ok(install.cmd.endsWith(' genie-claude --version'));
+    assert.equal(install.env, undefined);
+  } finally {
+    delete process.env.GENIE_PILOTS_FORK;
+  }
+});

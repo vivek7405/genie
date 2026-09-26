@@ -7,7 +7,7 @@
 // writes one to the machine's disk, or puts one on an execStream URL (that
 // route carries env in the query string). Every stdout and stderr that comes
 // back is passed through redact() before it is returned or thrown.
-import { NotFoundError, PilotsClient } from '@pilots/sdk';
+import { NotFoundError, PilotsClient, QuotaExceededError, type Machine } from '@pilots/sdk';
 import { basename, dirname } from 'node:path/posix';
 import { randomBytes } from 'node:crypto';
 import type { Project, Task } from '#db/schema.server.ts';
@@ -183,3 +183,87 @@ export async function destroyMachine(machineId: string): Promise<void> {
   }
 }
 
+export interface TaskMachine {
+  id: string;
+  name: string;
+  url: string;
+}
+
+const TASK_MACHINE_MEM_MIB = 2048;
+
+interface ForkResponse {
+  forks: Array<{ machine?: Machine; error?: string }>;
+}
+
+async function forkCheckpoint(checkpointId: string, name: string): Promise<TaskMachine> {
+  const res = await pilots().http.json<ForkResponse>('POST', `/v1/checkpoints/${encodeURIComponent(checkpointId)}/fork`, {
+    body: { name },
+    timeoutMs: null,
+  });
+  const entry = res.forks?.[0];
+  if (!entry?.machine) throw new Error(`fork of checkpoint ${checkpointId} failed: ${entry?.error ?? 'no machine in the response'}`);
+  return pick(entry.machine);
+}
+
+function pick(m: Machine): TaskMachine {
+  return { id: m.id, name: m.name, url: m.url };
+}
+
+function quotaError(err: QuotaExceededError): Error {
+  return new Error(`pilots machine quota reached (${err.limit}). Destroy finished task machines and retry.`);
+}
+
+// The machine a task runs in. A retry after a crash finds the machine it
+// already had by name. Otherwise a fork of the base checkpoint (the machine
+// comes up with git, gh, Claude Code and the webjs CLIs already installed),
+// rebuilt once when the checkpoint has gone missing. A fork that fails for any
+// other reason, or GENIE_PILOTS_FORK=0, falls back to a plain create and one
+// launcher run to install Claude Code. A fork carries no knobs and no labels,
+// so tasks.machineId and tasks.machineName are the join keys for cleanup.
+export async function createTaskMachine(task: Pick<Task, 'id'>, project: Pick<Project, 'githubRepo'>): Promise<TaskMachine> {
+  const client = pilots();
+  const name = machineNameFor(task, project);
+  const existing = (await client.machines.list()).find((m) => m.name === name && m.state !== 'destroyed');
+  if (existing) return pick(existing);
+
+  if (process.env.GENIE_PILOTS_FORK !== '0') {
+    // Dynamic on purpose: base-image imports the exec helpers from this file.
+    const base = await import('./base-image.server.ts');
+    try {
+      return await forkCheckpoint(await base.ensureBaseCheckpoint(), name);
+    } catch (err) {
+      if (err instanceof QuotaExceededError) throw quotaError(err);
+      if (err instanceof NotFoundError) {
+        await base.clearBaseCheckpoint();
+        try {
+          return await forkCheckpoint(await base.ensureBaseCheckpoint(), name);
+        } catch (again) {
+          if (again instanceof QuotaExceededError) throw quotaError(again);
+          console.warn(`genie: fork of the rebuilt base failed, creating ${name} from scratch: ${again instanceof Error ? again.message : String(again)}`);
+        }
+      } else {
+        console.warn(`genie: fork failed, creating ${name} from scratch: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+  }
+
+  let created: Machine;
+  try {
+    created = await client.machines.create({
+      name,
+      mem_mib: TASK_MACHINE_MEM_MIB,
+      knobs: { idle_timeout: 3600 },
+      labels: { genie_task: task.id, genie: '1' },
+    });
+  } catch (err) {
+    if (err instanceof QuotaExceededError) throw quotaError(err);
+    throw err;
+  }
+  // A template create records the size but boots the template's; the resize
+  // is what boots the machine at 2048 MiB.
+  await client.machines.resize(created.id, { mem_mib: TASK_MACHINE_MEM_MIB });
+  const { claudeCommand } = await import('./claude.server.ts');
+  const install = await execLong(created.id, claudeCommand(['--version']), { timeoutMs: 600_000 });
+  if (install.exitCode !== 0) throw new Error(`Claude Code install on ${name} failed (exit ${install.exitCode}): ${install.stderr.trim()}`);
+  return pick(created);
+}
