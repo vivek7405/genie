@@ -8,9 +8,10 @@ import { approveTask } from '#modules/tasks/actions/approve-task.server.ts';
 import { deleteTask } from '#modules/tasks/actions/delete-task.server.ts';
 import { requestChanges } from '#modules/tasks/actions/request-changes.server.ts';
 import { retryTask } from '#modules/tasks/actions/retry-task.server.ts';
+import { stopTask } from '#modules/tasks/actions/stop-task.server.ts';
 import { getTask } from '#modules/tasks/queries/get-task.server.ts';
 import { listEvents } from '#modules/tasks/queries/list-events.server.ts';
-import { isWorking } from '#modules/tasks/utils/state-machine.ts';
+import { canDelete, canStop } from '#modules/tasks/utils/state-machine.ts';
 import { feedLine } from '#modules/tasks/utils/ui/feed-line.ts';
 import { statusBadge } from '#modules/tasks/utils/ui/status-badge.ts';
 import '#modules/tasks/components/live-refresh.ts';
@@ -28,7 +29,6 @@ export default async function TaskDetail({ params, actionData }: PageProps<'/pro
   if (!task || task.projectId !== params.id) notFound();
   const events = await listEvents(task.id);
   const failed = formFailure(actionData);
-  const deletable = !isWorking(task) && (task.status === 'backlog' || (task.error != null && task.prNumber == null));
   return html`
     <div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
       <div class="flex items-center justify-between gap-3">
@@ -76,11 +76,18 @@ export default async function TaskDetail({ params, actionData }: PageProps<'/pro
           </ol>
         </section>
 
-        ${deletable ? html`
-          <form action=${deleteTask} data-webjs-frame="_top" class="m-0 mt-4">
-            <input type="hidden" name="taskId" value=${task.id}>
-            <button type="submit" class=${buttonClass({ variant: 'ghost', size: 'sm' })}>Delete this task</button>
-          </form>` : ''}
+        <div class="mt-4 flex gap-2">
+          ${canStop(task) ? html`
+            <form action=${stopTask} class="m-0">
+              <input type="hidden" name="taskId" value=${task.id}>
+              <button type="submit" class=${buttonClass({ variant: 'outline', size: 'sm' })}>Stop</button>
+            </form>` : ''}
+          ${canDelete(task) ? html`
+            <form action=${deleteTask} data-webjs-frame="_top" class="m-0">
+              <input type="hidden" name="taskId" value=${task.id}>
+              <button type="submit" class=${buttonClass({ variant: 'ghost', size: 'sm' })}>Delete this task</button>
+            </form>` : ''}
+        </div>
       </webjs-frame>
     </div>
   `;

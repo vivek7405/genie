@@ -1,6 +1,6 @@
 // Server-only: the one place a task's status changes. Enforces the state machine
 // with a conditional update, so two racing callers cannot both move a card.
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '#db/connection.server.ts';
 import { tasks } from '#db/schema.server.ts';
 import type { Task, TaskStatus } from '#modules/tasks/types.ts';
@@ -12,7 +12,8 @@ export async function transition(task: Pick<Task, 'id' | 'status'>, to: TaskStat
   if (!canTransition(task.status, to, actor)) return null;
   const [row] = await db.update(tasks)
     .set({ ...patch, status: to, claimedAt: null, error: null })
-    .where(and(eq(tasks.id, task.id), eq(tasks.status, task.status)))
+    // A worker finishing a stage must not undo a Stop that landed while it ran.
+    .where(and(eq(tasks.id, task.id), eq(tasks.status, task.status), actor === 'system' ? isNull(tasks.error) : undefined))
     .returning();
   if (!row) return null;
   await recordEvent(row.id, 'status', `Moved to ${labelOf(to)}`);
@@ -20,9 +21,10 @@ export async function transition(task: Pick<Task, 'id' | 'status'>, to: TaskStat
   return row;
 }
 
-// A failed stage keeps its column and shows the error; Retry clears it.
+// A failed stage keeps its column and shows the error; Retry clears it. The first
+// error wins, so a run unwinding after a Stop keeps the card saying it was stopped.
 export async function failStage(taskId: string, error: string): Promise<void> {
-  const [row] = await db.update(tasks).set({ error: redact(error), claimedAt: null }).where(eq(tasks.id, taskId)).returning();
+  const [row] = await db.update(tasks).set({ error: redact(error), claimedAt: null }).where(and(eq(tasks.id, taskId), isNull(tasks.error))).returning();
   if (!row) return;
   await recordEvent(row.id, 'error', error);
   notifyBoard(row);

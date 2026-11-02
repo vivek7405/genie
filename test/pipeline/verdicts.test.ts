@@ -5,7 +5,9 @@ import { aProject, aTask, db, feedOf, json, rowOf } from '../helpers/db.ts';
 import { taskEvents } from '#db/schema.server.ts';
 import { setGithubTransport } from '#modules/github/client.server.ts';
 import { setPilotsClient } from '#modules/pipeline/pilots.server.ts';
-import { approve, canDelete, removeTask, requestChanges, retry } from '#modules/pipeline/verdicts.server.ts';
+import { approve, removeTask, requestChanges, retry, stop, STOPPED } from '#modules/pipeline/verdicts.server.ts';
+import { canDelete, canStop } from '#modules/tasks/utils/state-machine.ts';
+import { failStage, transition } from '#modules/pipeline/transitions.server.ts';
 import { recordEvent } from '#modules/pipeline/events.server.ts';
 
 function githubPr(pr: { merged?: boolean; state?: string }, mergeStatus = 200) {
@@ -23,6 +25,15 @@ function pilots() {
   const destroyed: string[] = [];
   setPilotsClient({ machines: { destroy: async (id: string) => { destroyed.push(id); } } } as unknown as PilotsClient);
   return destroyed;
+}
+
+function execs() {
+  const cmds: string[] = [];
+  setPilotsClient({ machines: { exec: async (_id: string, req: { cmd: string }) => {
+    cmds.push(req.cmd);
+    return { stdout: '', stderr: '', exit_code: 0 };
+  } } } as unknown as PilotsClient);
+  return cmds;
 }
 
 afterEach(() => {
@@ -120,4 +131,37 @@ test('delete removes the card, its feed and its machine', async () => {
   assert.deepEqual(await feedOf(t.id), []);
   assert.equal(await db.query.tasks.findFirst({ where: { id: t.id } }), undefined);
   assert.ok(taskEvents);
+});
+
+test('stop marks the card and ends Claude on its machine', async () => {
+  const cmds = execs();
+  const p = await aProject();
+  const t = await aTask(p.id, { status: 'in_progress', machineId: 'm1', claimedAt: new Date() });
+  assert.equal((await stop(t)).success, true);
+  const row = await rowOf(t.id);
+  assert.equal(row.error, STOPPED);
+  assert.equal(row.claimedAt, null);
+  assert.equal(row.status, 'in_progress');
+  assert.ok(cmds.some((c) => c.includes('pkill')));
+});
+
+test('a run unwinding after a stop cannot move the card or replace the message', async () => {
+  execs();
+  const p = await aProject();
+  const t = await aTask(p.id, { status: 'in_progress', claimedAt: new Date() });
+  await stop(t);
+  assert.equal(await transition(t, 'review', 'system'), null);
+  await failStage(t.id, 'pkill ended the run');
+  const row = await rowOf(t.id);
+  assert.equal(row.status, 'in_progress');
+  assert.equal(row.error, STOPPED);
+});
+
+test('only a queued or running card can be stopped', async () => {
+  assert.equal(canStop({ status: 'backlog', error: null }), true);
+  assert.equal(canStop({ status: 'in_progress', error: null }), true);
+  assert.equal(canStop({ status: 'in_progress', error: 'x' }), false);
+  assert.equal(canStop({ status: 'review', error: null }), false);
+  const p = await aProject();
+  assert.equal((await stop(await aTask(p.id, { status: 'review' }))).success, false);
 });

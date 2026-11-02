@@ -7,7 +7,8 @@ import type { Project, Task } from '#db/schema.server.ts';
 import { describeError } from '#modules/github/client.server.ts';
 import { mergePr } from '#modules/github/pr.server.ts';
 import { recordEvent, notifyBoard } from './events.server.ts';
-import { destroyMachine } from './pilots.server.ts';
+import { canDelete, canStop } from '#modules/tasks/utils/state-machine.ts';
+import { destroyMachine, execLong } from './pilots.server.ts';
 import { transition } from './transitions.server.ts';
 
 const conflict = (error: string): ActionResult<Task> => ({ success: false, error, status: 409 });
@@ -50,10 +51,17 @@ export async function retry(task: Task): Promise<ActionResult<Task>> {
   return { success: true, data: row };
 }
 
-// Only a card nobody is working on, and never one with a live pull request.
-export function canDelete(task: Pick<Task, 'status' | 'error' | 'claimedAt' | 'prNumber'>): boolean {
-  if (task.claimedAt) return false;
-  return task.status === 'backlog' || (task.error != null && task.prNumber == null);
+export const STOPPED = 'Stopped. Retry to start again, or delete this task.';
+
+// Marks the card first, so the run unwinding sees it, then ends Claude on the machine.
+export async function stop(task: Task): Promise<ActionResult<Task>> {
+  if (!canStop(task)) return conflict('This task is not running.');
+  const [row] = await db.update(tasks).set({ error: STOPPED, claimedAt: null }).where(and(eq(tasks.id, task.id), isNull(tasks.error))).returning();
+  if (!row) return { success: true, data: task };
+  await recordEvent(row.id, 'status', 'Stopped');
+  notifyBoard(row);
+  if (row.machineId) await execLong(row.machineId, `pkill -f '[c]laude -p' || true`, { timeoutMs: 30_000 }).catch(() => undefined);
+  return { success: true, data: row };
 }
 
 export async function removeTask(task: Task): Promise<ActionResult<{ id: string }>> {

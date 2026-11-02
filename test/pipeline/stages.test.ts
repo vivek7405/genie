@@ -1,6 +1,8 @@
 import { afterEach, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { aProject, aTask, feedOf, rowOf } from '../helpers/db.ts';
+import { aProject, aTask, db, feedOf, rowOf } from '../helpers/db.ts';
+import { eq } from 'drizzle-orm';
+import { tasks } from '#db/schema.server.ts';
 import { branchFor, feedLines, runStage, setStageDeps } from '#modules/pipeline/stages.server.ts';
 import { renderPrompt, slugify } from '#modules/pipeline/prompts.server.ts';
 import type { ClaudeRun } from '#modules/pipeline/claude.server.ts';
@@ -149,6 +151,27 @@ test('a failed revise keeps its feedback for Retry', async () => {
   const t = await aTask(p.id, { status: 'in_progress', machineId: 'm1', branch: 'genie/x', prNumber: 5, feedback: 'Make it blue' });
   await assert.rejects(runStage(t));
   assert.equal((await rowOf(t.id)).feedback, 'Make it blue');
+});
+
+test('a card stopped during the run opens no pull request', async () => {
+  const log = fake({ ahead: '2' });
+  const p = await aProject();
+  const t = await aTask(p.id, { status: 'in_progress', machineId: 'm1' });
+  setStageDeps({ runClaude: async () => {
+    await db.update(tasks).set({ error: 'Stopped.' }).where(eq(tasks.id, t.id));
+    return ok;
+  } });
+  await assert.rejects(runStage(t), /Stopped/);
+  assert.deepEqual(log.pushed, []);
+  assert.deepEqual(log.opened, []);
+});
+
+test('a card stopped before the run never starts Claude', async () => {
+  const log = fake();
+  const p = await aProject();
+  const t = await aTask(p.id, { status: 'in_progress', machineId: 'm1', error: 'Stopped.' });
+  await assert.rejects(runStage(t), /Stopped/);
+  assert.equal(log.prompts.length, 0);
 });
 
 test('feedLines keeps prose and tool names and drops the rest', () => {

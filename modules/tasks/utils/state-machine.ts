@@ -37,6 +37,17 @@ export function isWorking(task: Pick<Task, 'status' | 'error' | 'claimedAt'>): b
   return task.error == null && task.claimedAt != null && SYSTEM_TRANSITIONS[task.status] !== undefined;
 }
 
+// Queued or running, and not already failed or stopped.
+export function canStop(task: Pick<Task, 'status' | 'error'>): boolean {
+  return task.error == null && SYSTEM_TRANSITIONS[task.status] !== undefined;
+}
+
+// Only a card nobody is working on, and never one with a live pull request.
+export function canDelete(task: Pick<Task, 'status' | 'error' | 'claimedAt' | 'prNumber'>): boolean {
+  if (task.claimedAt) return false;
+  return task.status === 'backlog' || (task.error != null && task.prNumber == null);
+}
+
 export function labelOf(status: TaskStatus): string {
   return COLUMNS.find((c) => c.status === status)?.label ?? status;
 }

@@ -102,12 +102,20 @@ async function prepare(task: Task, project: Project): Promise<string> {
   return machineId;
 }
 
+// A person pressed Stop, or deleted the card: nothing further may happen for it.
+async function assertStillWanted(taskId: string): Promise<void> {
+  const row = await db.query.tasks.findFirst({ where: { id: taskId } });
+  if (!row || row.error) throw new Error(row?.error ?? 'This task was deleted.');
+}
+
 async function claude(task: Task, machineId: string, opts: Omit<RunClaudeOptions, 'cwd' | 'logPath'>): Promise<ClaudeRun> {
+  await assertStillWanted(task.id);
   const run = await withLogFeed(task, machineId, () => deps.runClaude(machineId, { ...opts, cwd: APP_DIR, logPath: AGENT_LOG }));
   if (run.isRateLimited) {
     const when = run.resetsAt ? `, it resets at ${run.resetsAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : '';
     throw new Error(`Claude usage limit reached${when}. Retry after that.`);
   }
+  await assertStillWanted(task.id);
   return run;
 }
 
