@@ -1,8 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" data-webjs-placeholder="icon">
-  <!-- PLACEHOLDER app icon from `webjs create`. Replace this file with the
-       app's own icon: a simple symbol for what the app is, in its colours,
-       legible at 16px. Keep the file name (app/icon.svg) and the framework
-       links it, serves it and answers /favicon.ico with it. -->
-  <rect width="32" height="32" rx="8" fill="#d4d4d8"/>
-  <rect x="7" y="7" width="18" height="18" rx="3" fill="none" stroke="#71717a" stroke-width="2" stroke-dasharray="3 2.4"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <rect width="32" height="32" rx="8" fill="#12141b"/>
+  <path d="M6 18.5h15.2c3 0 4.8-1.6 4.8-3.7 0-1.3-1-2.3-2.2-2.3-1 0-1.8.6-2.2 1.5l-.6 1.3c-.5 1.1-1.5 1.7-2.7 1.7H11c-2.2 0-3.9-.6-5-1.8Z" fill="#f5b400"/>
+  <path d="M9.5 18.5c.4 2.6 2.4 4.5 5 4.5s4.6-1.9 5-4.5Z" fill="#f5b400"/>
+  <path d="M11 24.5h7" stroke="#f5b400" stroke-width="2" stroke-linecap="round"/>
+  <path d="M13 6.5c-1.2 1.6 1.2 2.5 0 4.2M17 5c-1.2 1.6 1.2 2.5 0 4.2" stroke="#ffd766" stroke-width="1.6" stroke-linecap="round" fill="none"/>
 </svg>
