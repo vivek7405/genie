@@ -1,0 +1,140 @@
+{
+  "name": "genie",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "imports": {
+    "#*": "./*"
+  },
+  "scripts": {
+    "css:build": "bun --bun tailwindcss -i ./public/input.css -o ./public/tailwind.css --minify",
+    "gallery:clear": "bun scripts/clear-gallery.mjs",
+    "dev": "bun --bun webjs dev",
+    "start": "bun --bun webjs start",
+    "test": "webjs test",
+    "test:server": "webjs test --server",
+    "test:browser": "webjs test --browser",
+    "check": "webjs check",
+    "typecheck": "webjs typecheck",
+    "doctor": "webjs doctor",
+    "ci": "webjs ci",
+    "db:generate": "bun --bun webjs db generate",
+    "db:migrate": "bun --bun webjs db migrate",
+    "db:push": "bun --bun webjs db push",
+    "db:studio": "bun --bun webjs db studio",
+    "db:seed": "bun --bun webjs db seed"
+  },
+  "dependencies": {
+    "drizzle-orm": "1.0.0-rc.3",
+    "@webjsdev/cli": "latest",
+    "@webjsdev/core": "latest",
+    "@webjsdev/server": "latest",
+    "drizzle-kit": "1.0.0-rc.3",
+    "@tailwindcss/cli": "^4.1.0",
+    "tailwindcss": "^4.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "@types/node": "^24.0.0",
+    "@web/test-runner": "^0.20.0",
+    "@web/test-runner-playwright": "^0.11.0",
+    "playwright": "^1.59.0",
+    "axe-core": "^4.10.0",
+    "@webjsdev/intellisense": "latest"
+  },
+  "overrides": {
+    "puppeteer-core": "^25.7.0",
+    "basic-ftp": "^6.2.2"
+  },
+  "webjs": {
+    "dev": {
+      "before": [
+        "webjs db migrate",
+        "bun --bun tailwindcss -i ./public/input.css -o ./public/tailwind.css --minify"
+      ],
+      "regenerate": [
+        {
+          "output": "public/tailwind.css",
+          "command": "bun --bun tailwindcss -i ./public/input.css -o ./public/tailwind.css --minify",
+          "inputs": [
+            "app",
+            "components",
+            "modules",
+            "lib",
+            "public/input.css"
+          ]
+        }
+      ]
+    },
+    "start": {
+      "before": [
+        "webjs db migrate",
+        "bun --bun tailwindcss -i ./public/input.css -o ./public/tailwind.css --minify"
+      ]
+    },
+    "doctor": {
+      "gate": {
+        "UNMARKED_ASSET_LINKS": "error"
+      }
+    },
+    "audit": {
+      "level": "high",
+      "ignore": [
+        {
+          "id": "GHSA-vfj7-8cjw-p6xm",
+          "reason": "braces <=3.0.3 (no patched release) is reached only through dev tooling: the Tailwind CLI file watcher and the test runner globber, on glob patterns this repo writes. Nothing in the served app expands a pattern from request input."
+        }
+      ]
+    },
+    "ci": {
+      "steps": [
+        {
+          "title": "Setup",
+          "run": "webjs db migrate"
+        },
+        {
+          "title": "Checks",
+          "parallel": 2,
+          "steps": [
+            {
+              "title": "Conventions",
+              "run": "webjs check"
+            },
+            {
+              "title": "Health",
+              "run": "webjs doctor"
+            },
+            {
+              "title": "Types",
+              "run": "webjs typecheck"
+            },
+            {
+              "title": "Security: dependency audit",
+              "run": "webjs audit"
+            },
+            {
+              "title": "Tests",
+              "steps": [
+                {
+                  "title": "Tests: server",
+                  "run": "webjs test --server"
+                },
+                {
+                  "title": "Tests: browser",
+                  "run": "webjs test --browser"
+                },
+                {
+                  "title": "Tests: e2e",
+                  "run": "webjs test --server",
+                  "env": {
+                    "WEBJS_E2E": "1"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
