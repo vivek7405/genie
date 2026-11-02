@@ -183,7 +183,11 @@ export async function runClaude(machineId: string, opts: RunClaudeOptions): Prom
       String(opts.maxTurns),
       '--dangerously-skip-permissions',
       '--settings',
-      JSON.stringify({ advisorModel: process.env.GENIE_ADVISOR_MODEL || DEFAULT_ADVISOR_MODEL }),
+      JSON.stringify({
+        advisorModel: process.env.GENIE_ADVISOR_MODEL || DEFAULT_ADVISOR_MODEL,
+        // The work is the signed-in person's, and a prompt rule alone did not stop the trailer.
+        attribution: { commit: '', pr: '' },
+      }),
       // Nobody is there to approve a plan, so plan mode could only burn the budget.
       '--disallowedTools',
       'EnterPlanMode,ExitPlanMode',

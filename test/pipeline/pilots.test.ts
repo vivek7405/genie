@@ -108,7 +108,7 @@ test('runClaude stops a leftover run first and reads the result line back', asyn
   assert.equal(calls[start].env?.CLAUDE_CODE_OAUTH_TOKEN, 'test-claude-token');
   assert.equal(calls[start].env?.GH_TOKEN, 'test-github-token');
   assert.ok(!calls[start].cmd.includes('test-claude-token'));
-  assert.ok(calls[start].cmd.includes(`--settings '{"advisorModel":"fable"}'`));
+  assert.ok(calls[start].cmd.includes(`--settings '{"advisorModel":"fable","attribution":{"commit":"","pr":""}}'`));
   assert.match(calls[start].cmd, /--disallowedTools EnterPlanMode,ExitPlanMode/);
   assert.equal(run.result, 'https://github.com/a/b/pull/1');
   assert.equal(run.isRateLimited, false);
