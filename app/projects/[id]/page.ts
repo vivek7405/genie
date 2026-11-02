@@ -57,7 +57,7 @@ export default async function Board({ params, actionData }: PageProps<'/projects
       <webjs-frame id="board" class="mt-6 block">
         <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           ${columns.map((column) => html`
-            <section class="flex min-h-64 flex-col gap-2 rounded-xl border border-border bg-muted/60 p-2.5" aria-label=${column.label}>
+            <section class="flex flex-col gap-2 rounded-xl md:min-h-64 border border-border bg-muted/60 p-2.5" aria-label=${column.label}>
               <header class="flex items-baseline justify-between px-1 pb-1">
                 <h2 class="m-0 text-xs font-semibold uppercase tracking-wider text-muted-foreground">${column.label}</h2>
                 <span class="text-xs tabular-nums text-muted-foreground">${column.tasks.length}</span>

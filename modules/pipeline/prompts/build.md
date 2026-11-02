@@ -14,7 +14,9 @@ and keep going until the pull request exists.
 1. Read `AGENTS.md`, `CLAUDE.md` and `README.md` at the repo root if they exist
    (they are the contract for this codebase and win over anything below), then
    the package manifest and the files the task touches.
-2. Say your plan in a few short lines as your first message, then do it.
+2. Do not spend time planning. Read only what the task touches, state your approach
+   in one line, and start changing code. There is no plan mode and no plan file. If
+   a decision is genuinely hard, call the advisor once, then act on its answer.
 3. Work on the branch `{{branch}}`. Create it from `{{defaultBranch}}` if it does
    not exist, or check it out if it does. You may be resuming an earlier run:
    keep its commits and do not reset the branch.
@@ -38,5 +40,8 @@ gh pr create --base {{defaultBranch}} --head {{branch}} --title "<imperative sum
 
 Write `/home/pilot/pr-body.md` first: a short paragraph of what changed and why,
 then a test plan checklist of the checks you ran.
+
+Before opening it, call the advisor once to check the finished work, unless the
+change is trivial.
 
 When the pull request exists, stop. Your final message is its URL on its own line.

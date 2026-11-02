@@ -181,6 +181,7 @@ test('feedLines keeps prose and tool names and drops the rest', () => {
     { type: 'tool_use', name: 'Glob' },
   ] } });
   assert.deepEqual(feedLines(assistant), ['Plan:', 'Bash: npm test', 'Glob']);
+  assert.deepEqual(feedLines(JSON.stringify({ type: 'assistant', message: { content: [{ type: 'server_tool_use', name: 'advisor' }, { type: 'advisor_tool_result' }] } })), ['Asked the advisor']);
   assert.deepEqual(feedLines(JSON.stringify({ type: 'user' })), []);
   assert.deepEqual(feedLines('{"truncated'), []);
   assert.deepEqual(feedLines('null'), []);

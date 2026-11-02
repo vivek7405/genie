@@ -7,7 +7,7 @@ import type { Project, Task } from '#db/schema.server.ts';
 import { describeError } from '#modules/github/client.server.ts';
 import { mergePr } from '#modules/github/pr.server.ts';
 import { recordEvent, notifyBoard } from './events.server.ts';
-import { canDelete, canStop } from '#modules/tasks/utils/state-machine.ts';
+import { canDelete, canStop, STOPPED } from '#modules/tasks/utils/state-machine.ts';
 import { destroyMachine, execLong } from './pilots.server.ts';
 import { transition } from './transitions.server.ts';
 
@@ -50,8 +50,6 @@ export async function retry(task: Task): Promise<ActionResult<Task>> {
   notifyBoard(row);
   return { success: true, data: row };
 }
-
-export const STOPPED = 'Stopped. Retry to start again, or delete this task.';
 
 // Marks the card first, so the run unwinding sees it, then ends Claude on the machine.
 export async function stop(task: Task): Promise<ActionResult<Task>> {

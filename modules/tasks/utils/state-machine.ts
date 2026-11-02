@@ -37,6 +37,8 @@ export function isWorking(task: Pick<Task, 'status' | 'error' | 'claimedAt'>): b
   return task.error == null && task.claimedAt != null && SYSTEM_TRANSITIONS[task.status] !== undefined;
 }
 
+export const STOPPED = 'Stopped. Retry to start again, or delete this task.';
+
 // Queued or running, and not already failed or stopped.
 export function canStop(task: Pick<Task, 'status' | 'error'>): boolean {
   return task.error == null && SYSTEM_TRANSITIONS[task.status] !== undefined;

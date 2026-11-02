@@ -254,6 +254,7 @@ export function feedLines(line: string): string[] {
       const hint = String(block.input?.description ?? block.input?.command ?? block.input?.file_path ?? block.input?.pattern ?? '');
       out.push(cap(`${block.name}${hint ? `: ${hint.split('\n')[0]}` : ''}`));
     }
+    if (block.type === 'server_tool_use' && block.name === 'advisor') out.push('Asked the advisor');
   }
   return out;
 }

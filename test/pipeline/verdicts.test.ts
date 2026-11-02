@@ -5,8 +5,8 @@ import { aProject, aTask, db, feedOf, json, rowOf } from '../helpers/db.ts';
 import { taskEvents } from '#db/schema.server.ts';
 import { setGithubTransport } from '#modules/github/client.server.ts';
 import { setPilotsClient } from '#modules/pipeline/pilots.server.ts';
-import { approve, removeTask, requestChanges, retry, stop, STOPPED } from '#modules/pipeline/verdicts.server.ts';
-import { canDelete, canStop } from '#modules/tasks/utils/state-machine.ts';
+import { approve, removeTask, requestChanges, retry, stop } from '#modules/pipeline/verdicts.server.ts';
+import { canDelete, canStop, STOPPED } from '#modules/tasks/utils/state-machine.ts';
 import { failStage, transition } from '#modules/pipeline/transitions.server.ts';
 import { recordEvent } from '#modules/pipeline/events.server.ts';
 

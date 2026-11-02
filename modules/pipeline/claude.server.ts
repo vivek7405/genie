@@ -84,6 +84,10 @@ export function claudeCommand(args: readonly ClaudeArg[]): string {
   return ['sh', '-c', shellQuote(CLAUDE_LAUNCHER), SESSION_MARK, ...rest].join(' ');
 }
 
+// A stronger model the run can consult at its decision points, instead of spending
+// its own turns planning. Override with GENIE_ADVISOR_MODEL.
+export const DEFAULT_ADVISOR_MODEL = 'fable';
+
 export const DEFAULT_PROMPT_PATH = '/home/pilot/.genie/prompt.md';
 export const DEFAULT_LOG_PATH = '/home/pilot/.genie/claude.log';
 
@@ -178,6 +182,11 @@ export async function runClaude(machineId: string, opts: RunClaudeOptions): Prom
       '--max-turns',
       String(opts.maxTurns),
       '--dangerously-skip-permissions',
+      '--settings',
+      JSON.stringify({ advisorModel: process.env.GENIE_ADVISOR_MODEL || DEFAULT_ADVISOR_MODEL }),
+      // Nobody is there to approve a plan, so plan mode could only burn the budget.
+      '--disallowedTools',
+      'EnterPlanMode,ExitPlanMode',
       ...(opts.model ? ['--model', opts.model] : []),
     ]) + ` > ${shellQuote(logPath)} 2> ${shellQuote(`${logPath}.err`)}`;
   const run = await execLong(machineId, cmd, {

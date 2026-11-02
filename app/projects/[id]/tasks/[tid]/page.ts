@@ -11,7 +11,7 @@ import { retryTask } from '#modules/tasks/actions/retry-task.server.ts';
 import { stopTask } from '#modules/tasks/actions/stop-task.server.ts';
 import { getTask } from '#modules/tasks/queries/get-task.server.ts';
 import { listEvents } from '#modules/tasks/queries/list-events.server.ts';
-import { canDelete, canStop } from '#modules/tasks/utils/state-machine.ts';
+import { canDelete, canStop, STOPPED } from '#modules/tasks/utils/state-machine.ts';
 import { feedLine } from '#modules/tasks/utils/ui/feed-line.ts';
 import { statusBadge } from '#modules/tasks/utils/ui/status-badge.ts';
 import '#modules/tasks/components/live-refresh.ts';
@@ -46,8 +46,8 @@ export default async function TaskDetail({ params, actionData }: PageProps<'/pro
         ${failed.error ? html`<p role="alert" class="m-0 mt-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">${failed.error}</p>` : ''}
 
         ${task.error ? html`
-          <div class="mt-4 rounded-xl border border-destructive/40 bg-destructive/10 p-4">
-            <p class="m-0 whitespace-pre-wrap break-words text-sm text-destructive">${task.error}</p>
+          <div class=${cn('mt-4 rounded-xl border p-4', task.error === STOPPED ? 'border-border bg-card' : 'border-destructive/40 bg-destructive/10')}>
+            <p class=${cn('m-0 whitespace-pre-wrap break-words text-sm', task.error === STOPPED ? 'text-muted-foreground' : 'text-destructive')}>${task.error}</p>
             <form action=${retryTask} class="m-0 mt-3">
               <input type="hidden" name="taskId" value=${task.id}>
               <button type="submit" class=${buttonClass({ size: 'sm' })}>Retry</button>
