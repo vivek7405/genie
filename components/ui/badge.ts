@@ -1,41 +1,41 @@
 /**
- * badgeClass: the gallery's badge/pill design token, built on @webjsdev/ui.
+ * Badge: small visual label. Tier-1 class helper; compose with any
+ * inline element (commonly `<span>` or `<a>` for linked badges).
  *
- * A `@webjsdev/ui` tier-1 CLASS HELPER (like buttonClass): it returns a Tailwind
- * class string you spread onto a NATIVE inline element, almost always a `<span>`
- * (a static label) or an `<a>` (a linked tag). Native markup means no wrapper
- * component and correct semantics for free:
+ * shadcn parity:
+ *   Badge (variant: default | secondary | destructive | outline | ghost | link)
+ *                                  → badgeClass({ variant })
  *
- *   <span class=${badgeClass()}>Signed in</span>
- *   <span class=${badgeClass({ variant: 'outline' })}>Example app</span>
+ * The `[a&]:hover:...` hover styles only apply when the element is an `<a>`,
+ * so a static `<span>` doesn't pick up an unwanted hover.
  *
- * OWN-AND-THEME: this is `@webjsdev/ui`'s badge THEMED to this scaffold's two
- * real uses, NOT the fuller shadcn badge (solid primary, secondary, destructive,
- * ghost, link). Keep only the variants you use, styled to your look. `default`
- * is a soft primary pill (a status chip); `outline` is a quiet muted tag.
+ * A11y (required for accessible output): render a static badge as a plain
+ * <span> (not focusable, no tabindex). Only an interactive badge (an <a>
+ * or <button>) is focusable, and an icon-only one needs an aria-label.
  *
- * A11y: a static badge is a plain non-focusable `<span>`. Make it an `<a>` only
- * when it links somewhere.
+ * Design tokens used: --primary, --secondary, --destructive, --foreground,
+ * --accent, --border, --ring.
  *
- * Design tokens used (app/layout.ts): --color-primary, --color-border,
- * --color-muted-foreground.
+ * Full usage example: npx @webjsdev/ui view badge  (or the MCP tool: ui badge)
  */
-import { cn } from '#lib/utils/cn.ts';
+import { cn } from '../../lib/utils/cn.ts';
 
-// Shared by every variant: an inline pill that hugs its content and never wraps.
-const BASE = 'inline-flex w-fit shrink-0 items-center whitespace-nowrap';
+const BASE =
+  'inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-full border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3';
 
 const VARIANTS = {
-  // A soft, tinted primary chip. Used for a status ("Signed in").
-  default: 'rounded-full bg-primary/15 text-primary px-2.5 py-1 text-xs font-medium',
-  // A tiny, quiet outline tag. Used to label a kind of thing ("Example app").
+  default: 'bg-primary text-primary-foreground [a&]:hover:bg-primary/90',
+  secondary: 'bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90',
+  destructive:
+    'bg-destructive text-white focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40 [a&]:hover:bg-destructive/90',
   outline:
-    'rounded border border-border text-muted-foreground px-1.5 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wider',
+    'border-border text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground',
+  ghost: '[a&]:hover:bg-accent [a&]:hover:text-accent-foreground',
+  link: 'text-primary underline-offset-4 [a&]:hover:underline',
 } as const;
 
 export type BadgeVariant = keyof typeof VARIANTS;
 
-/** Compose the Tailwind classes for a badge/pill. Append your own layout as needed. */
 export function badgeClass(opts: { variant?: BadgeVariant } = {}): string {
   return cn(BASE, VARIANTS[opts.variant ?? 'default']);
 }

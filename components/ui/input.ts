@@ -1,50 +1,54 @@
 /**
- * inputClass: the gallery's text-field design token, built on @webjsdev/ui.
+ * Input: styled native `<input>`. Tier-1 class helper. Works with every
+ * input type (text, email, password, number, search, tel, url, date,
+ * time, file, color, …). Form submission, autocomplete, browser
+ * validation, and password managers all work because it IS the native
+ * input.
  *
- * Like buttonClass, this is a `@webjsdev/ui` tier-1 CLASS HELPER: it returns a
- * Tailwind class string you spread onto a NATIVE `<input>` or `<textarea>`, so
- * the browser's built-in form behaviour, validation, and accessibility all work
- * with nothing extra:
+ * shadcn parity:
+ *   Input  → inputClass()
  *
- *   <input class=${inputClass()} name="email" type="email" />
- *   <textarea class=${inputClass()} name="message" rows="3"></textarea>
+ * Pair with `<label class=${labelClass()} for="...">` and a hint paragraph
+ * (`<p class=${hintClass()} id="...-hint">`). Wrap all three in
+ * `<div class=${fieldClass()}>` for the canonical field rhythm.
  *
- * The same helper styles inputs AND textareas here, because this app wants them
- * to look identical. That is the point of a design token: one place decides how
- * every field looks, so they cannot drift apart. If you later want a distinct
- * textarea look, add a `textareaClass` alongside this and theme it separately
- * (that is exactly how `webjs ui add textarea` would give you one).
+ * Design tokens used: --input, --background, --primary, --primary-foreground,
+ * --muted-foreground, --foreground, --ring, --destructive.
  *
- * OWN-AND-THEME: this is `@webjsdev/ui`'s input, THEMED to this scaffold's look
- * (a filled `bg-background` field, `rounded-xl`, a primary focus border). You
- * own this file: change the class values here and every field in the app
- * updates at once. This is the intended workflow when building on `@webjsdev/ui`
- * for a real app: pull the primitive, then make it yours.
+ * A11y (required for accessible output):
+ *   LABEL IT. A `<label class=${labelClass()} for="<the input's id">` is the
+ *   whole requirement, and the `for` / `id` pair is what links them. Without it
+ *   the input has no accessible name and a screen reader announces only "edit
+ *   text". A `placeholder` is NOT a label: it disappears the moment the user
+ *   types, and some engines never expose it as a name at all.
+ *   Every `aria-describedby` must point at an element that EXISTS on the page.
+ *   A dangling id silently contributes nothing, so the hint or error text is
+ *   never announced; the example below therefore renders the `#email-hint` node
+ *   it references rather than assuming it.
+ *   On a validation failure set `aria-invalid="true"` (the class styles the
+ *   error ring off it) and point `aria-describedby` at the error text, so the
+ *   reason is announced along with the field rather than only shown in red.
+ *   Set the right `type` and `autocomplete`. Both are accessibility features:
+ *   `type` picks the mobile keyboard and the native validation, and
+ *   `autocomplete` is what lets a password manager or an autofill user avoid
+ *   retyping. `type="search"` / `type="email"` also announce as such.
+ *   A required field wants the native `required` attribute, not just an
+ *   asterisk in the label, so the state reaches assistive tech.
+ *
+ * Full usage example: npx @webjsdev/ui view input  (or the MCP tool: ui input)
  */
-import { cn } from '#lib/utils/cn.ts';
+import { cn } from '../../lib/utils/cn.ts';
 
-// One surface for every text field. `focus:border-primary` is the whole focus
-// affordance (no ring), to match this app's quiet, token-driven chrome.
-const BASE =
-  'w-full bg-background border border-border rounded-xl px-3 py-2 text-[15px] text-foreground outline-none transition-colors focus:border-primary placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60';
+const INPUT_BASE =
+  'h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-input/30';
 
-/**
- * Compose the Tailwind classes for a text input or textarea. Append your own
- * layout classes as needed: `class="${inputClass()} max-w-sm"`.
- */
-export function inputClass(extra?: string): string {
-  return cn(BASE, extra);
-}
+const INPUT_FOCUS =
+  'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
 
-// A BORDERLESS field for composing INSIDE a card/pill: a `cardClass()` form with a
-// button (a search-bar). The card is the bordered container, so the field is
-// seamless (transparent, no border), and it flexes to fill the row. Distinct from
-// inputClass (a standalone bordered field); a bordered input inside a bordered
-// card would be a box-in-a-box.
-const BARE =
-  'flex-1 min-w-0 bg-transparent border-0 outline-none py-1.5 text-[15px] text-foreground placeholder:text-muted-foreground';
+const INPUT_INVALID =
+  'aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40';
 
-/** Compose the classes for a borderless text field composed inside a card pill. */
-export function bareInputClass(extra?: string): string {
-  return cn(BARE, extra);
+/** Compose Tailwind classes for a native `<input>`. */
+export function inputClass(): string {
+  return cn(INPUT_BASE, INPUT_FOCUS, INPUT_INVALID);
 }

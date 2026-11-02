@@ -1,36 +1,92 @@
 /**
- * cardClass: the gallery's panel-surface design token, built on @webjsdev/ui.
+ * Card: visual container. Tier-1 class helpers; compose with `<div>`
+ * (or any element) for each subpart.
  *
- * A `@webjsdev/ui` tier-1 CLASS HELPER for the "card" surface every demo panel
- * sits on. It owns only the SURFACE (radius, border, background), NOT the
- * padding or inner layout, because those genuinely differ per panel (a form
- * grid, a centered card, a tight toolbar). So you compose:
+ * shadcn parity:
+ *   Card (size: default | sm)  → cardClass({ size })
+ *   CardHeader                 → cardHeaderClass()
+ *   CardTitle                  → cardTitleClass()
+ *   CardDescription            → cardDescriptionClass()
+ *   CardAction                 → cardActionClass()
+ *   CardContent                → cardContentClass()
+ *   CardFooter                 → cardFooterClass()
  *
- *   <div class="${cardClass()} p-5 grid gap-4">...</div>
- *   <div class="${cardClass()} p-2 flex items-center gap-2">...</div>
+ * Design tokens used: --card, --card-foreground, --muted-foreground, --border.
  *
- * WHY split surface from layout: the surface is the thing that MUST be identical
- * everywhere (so all panels read as one system), while padding and layout are a
- * per-panel decision. Centralizing only the surface gives consistency without
- * flattening intentional layout differences. Contrast the fuller shadcn Card
- * (header / title / content / footer subparts) that `webjs ui add card` ships:
- * this scaffold's panels are simple containers, so it keeps only what it uses.
+ * A11y (required for accessible output):
+ *   Use a REAL HEADING for `cardTitleClass()` whenever the card has a
+ *   meaningful title. The helper only styles text, so on a `<div>` the title is
+ *   invisible to the heading outline a screen reader user navigates by, and on a
+ *   page of cards they get an unstructured wall. Pick the level that fits the
+ *   surrounding document (`<h2>` under the page `<h1>`, `<h3>` inside a
+ *   sectioned region); do not pick it for the font size, which the class sets.
+ *   The card root is a plain `<div>` with no role, which is correct: it is a
+ *   visual container. Give it a role only when it really is one thing, and then
+ *   name it, e.g. `<section aria-labelledby="<the title's id">` for a landmark,
+ *   or `role="listitem"` inside a `role="list"` for a card grid.
+ *   A WHOLE-CARD LINK is the trap. Do not wrap the card in an `<a>` around a
+ *   header, body, and buttons: it swallows the nested controls and gives a
+ *   screen reader user one enormous link whose name is the entire card text.
+ *   Put the link on the title instead and let the card be a container.
+ *   Keep the reading order of the DOM matching the visual order.
+ *   `cardActionClass()` places an action at the top right, but it stays after
+ *   the title and description in the markup, which is what you want announced.
  *
- * OWN-AND-THEME: this is `@webjsdev/ui`'s card THEMED to this scaffold (a
- * `rounded-2xl` panel on `bg-card` with a hairline border). Change the surface
- * here and every panel updates at once. When you build a real app on
- * `@webjsdev/ui`, do the same: pull the primitive, keep the parts you use, and
- * theme it to your brand.
+ * Full usage example: npx @webjsdev/ui view card  (or the MCP tool: ui card)
  */
-import { cn } from '#lib/utils/cn.ts';
 
-// The shared panel surface. Padding + inner layout stay on the call site.
-const SURFACE = 'rounded-2xl border border-border bg-card';
+export type CardSize = 'default' | 'sm';
 
 /**
- * Compose the Tailwind classes for a card/panel surface. Append the panel's own
- * padding + layout: `class="${cardClass()} p-5 grid gap-4 max-w-[460px]"`.
+ * Card root. shadcn ships `size?: "default" | "sm"` on Card across
+ * 14/15 style families (only new-york-v4 omits it). The class string
+ * uses `group/card` so the header / title / content / footer helpers
+ * can read the parent card's data-size and adjust their own padding
+ * + gap.
+ *
+ * USAGE: pass size to cardClass AND set data-size="<size>" on the
+ * same host element so the group-data-[size=...]/card child rules
+ * fire. Set `data-slot="card"` for shadcn parity.
+ *
+ *   <div class=${cardClass({ size: 'sm' })} data-slot="card" data-size="sm">
+ *     <div class=${cardHeaderClass()}>...</div>
+ *     ...
+ *   </div>
+ *
+ * Sizes:
+ *   default: gap-6 / py-6 (shadcn new-york-v4 default)
+ *   sm:     gap-3 / py-3 (shadcn radix-nova + base-* defaults)
  */
-export function cardClass(extra?: string): string {
-  return cn(SURFACE, extra);
-}
+export const cardClass = (opts: { size?: CardSize } = {}): string => {
+  const size = opts.size ?? 'default';
+  const base =
+    'group/card flex flex-col rounded-xl border bg-card text-card-foreground shadow-sm';
+  return size === 'sm' ? base + ' gap-3 py-3' : base + ' gap-6 py-6';
+};
+
+/**
+ * Card header: supports an optional `CardAction` slot via grid layout.
+ * group-data-[size=sm]/card rules pick up the compact layout when the
+ * root card carries data-size="sm".
+ */
+export const cardHeaderClass = (): string =>
+  '@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-2 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6 group-data-[size=sm]/card:px-4 group-data-[size=sm]/card:gap-1 group-data-[size=sm]/card:[.border-b]:pb-3';
+
+/** Card title: heading text within the header. Smaller when card is data-size="sm". */
+export const cardTitleClass = (): string =>
+  'leading-none font-semibold group-data-[size=sm]/card:text-sm';
+
+/** Card description: subdued caption beneath the title. */
+export const cardDescriptionClass = (): string => 'text-sm text-muted-foreground';
+
+/** Card action: right-aligned controls inside the header (matches shadcn CardAction). */
+export const cardActionClass = (): string =>
+  'col-start-2 row-span-2 row-start-1 self-start justify-self-end';
+
+/** Card content: the main body region. Tighter padding when card is data-size="sm". */
+export const cardContentClass = (): string =>
+  'px-6 group-data-[size=sm]/card:px-4';
+
+/** Card footer: trailing controls or actions. Tighter padding when card is data-size="sm". */
+export const cardFooterClass = (): string =>
+  'flex items-center px-6 [.border-t]:pt-6 group-data-[size=sm]/card:px-4 group-data-[size=sm]/card:[.border-t]:pt-3';

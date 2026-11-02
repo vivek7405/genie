@@ -25,12 +25,13 @@
     "db:seed": "bun --bun webjs db seed"
   },
   "dependencies": {
-    "drizzle-orm": "1.0.0-rc.3",
+    "@pilots/sdk": "^0.11.0",
+    "@tailwindcss/cli": "^4.1.0",
     "@webjsdev/cli": "latest",
-    "@webjsdev/core": "latest",
+    "@webjsdev/core": "^0.7.65",
     "@webjsdev/server": "latest",
     "drizzle-kit": "1.0.0-rc.3",
-    "@tailwindcss/cli": "^4.1.0",
+    "drizzle-orm": "1.0.0-rc.3",
     "tailwindcss": "^4.1.0"
   },
   "devDependencies": {

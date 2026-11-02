@@ -5,9 +5,10 @@
     "": {
       "name": "genie",
       "dependencies": {
+        "@pilots/sdk": "^0.11.0",
         "@tailwindcss/cli": "^4.1.0",
         "@webjsdev/cli": "latest",
-        "@webjsdev/core": "latest",
+        "@webjsdev/core": "^0.7.65",
         "@webjsdev/server": "latest",
         "drizzle-kit": "1.0.0-rc.3",
         "drizzle-orm": "1.0.0-rc.3",
@@ -136,6 +137,8 @@
     "@parcel/watcher-win32-ia32": ["@parcel/watcher-win32-ia32@2.5.1", "", { "os": "win32", "cpu": "ia32" }, "sha512-c2KkcVN+NJmuA7CGlaGD1qJh1cLfDnQsHjE89E60vUEMlqduHGCdCLJCID5geFVM0dOtA3ZiIO8BoEQmzQVfpQ=="],
 
     "@parcel/watcher-win32-x64": ["@parcel/watcher-win32-x64@2.5.1", "", { "os": "win32", "cpu": "x64" }, "sha512-9lHBdJITeNR++EvSQVUcaZoWupyHfXe1jZvGZ06O/5MflPcuPLtEphScIBL+AiCWBO46tDSHzWyD0uDmmZqsgA=="],
+
+    "@pilots/sdk": ["@pilots/sdk@0.11.0", "", {}, "sha512-Oh/Skd208T6/rmECBA30+/W8ZeDO29wgcLFryzee8PXsnpI8NjgQgdxr7eeO3F/aEZMiC/rhAUIRFcgh3qd52g=="],
 
     "@puppeteer/browsers": ["@puppeteer/browsers@3.2.6", "", { "dependencies": { "modern-tar": "^0.8.6", "yargs": "^18.0.0" }, "peerDependencies": { "proxy-agent": ">=8.0.1", "yauzl": "^2.10.0 || ^3.4.0" }, "optionalPeers": ["proxy-agent", "yauzl"], "bin": { "browsers": "lib/main-cli.js" } }, "sha512-MJP29gVoHznmqmwhH1tlZqzfeQ3aylTpSSa6WKZXtkwYUH02i9imBmWGTyZrbnAou5paX78SE4jMAUqnEPf8ug=="],
 
