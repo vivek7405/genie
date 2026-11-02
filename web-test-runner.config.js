@@ -27,6 +27,9 @@ import { Readable } from 'node:stream';
 
 // One webjs handler for the app, warmed once and shared. Top-level await so the
 // importmap is ready before `testRunnerHtml` is called for the first test file.
+// The handler boots the app, instrumentation included, against whatever database
+// .env names. Without this, running tests beside a dev server starts a second worker.
+process.env.GENIE_WORKER = '0';
 const webjs = await createBrowserTestHandler(resolve('.'));
 
 export default {

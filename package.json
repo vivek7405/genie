@@ -82,8 +82,8 @@
       "level": "high",
       "ignore": [
         {
-          "id": "GHSA-vfj7-8cjw-p6xm",
-          "reason": "braces <=3.0.3 (no patched release) is reached only through dev tooling: the Tailwind CLI file watcher and the test runner globber, on glob patterns this repo writes. Nothing in the served app expands a pattern from request input."
+          "id": "GHSA-mrhx-c7xc-m3w5",
+          "reason": "zod 3.x has no patched release (the fix is 4.6.6) and @webjsdev/ui pins ^3. It is reached only through the webjs CLI tooling and an optional drizzle peer. The app imports no zod, and every validator here is hand-written, so request input never reaches it."
         }
       ]
     },

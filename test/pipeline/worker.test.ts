@@ -91,6 +91,16 @@ test('a card deleted after the query is not run', async () => {
   assert.equal(ran, false);
 });
 
+test('a card another process already claimed is not run again', async () => {
+  let ran = false;
+  setStageRunner(async (t) => { ran = true; return advance(t); });
+  const t = await aTask((await aProject()).id, { claimedAt: new Date() });
+  await tick();
+  await drain();
+  assert.equal(ran, false);
+  await db.update(tasks).set({ status: 'done', claimedAt: null }).where(inArray(tasks.id, [t.id]));
+});
+
 test('a restart releases the dead process claims so the next tick resumes them', async () => {
   const t = await aTask((await aProject()).id, { status: 'in_progress', claimedAt: new Date() });
   const released = await releaseClaims();

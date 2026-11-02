@@ -87,9 +87,11 @@ function withDeadline<T>(work: Promise<T>): Promise<T> {
 
 async function run(task: Task): Promise<void> {
   try {
-    // The conditions keep a card deleted or moved since the query from running.
+    // The conditions keep a card deleted, moved, or claimed by another process since
+    // the query from running. A claim that outlives its process is released at the
+    // next boot, or by Stop.
     const [claimed] = await db.update(tasks).set({ claimedAt: new Date() })
-      .where(and(eq(tasks.id, task.id), eq(tasks.status, task.status), isNull(tasks.error)))
+      .where(and(eq(tasks.id, task.id), eq(tasks.status, task.status), isNull(tasks.error), isNull(tasks.claimedAt)))
       .returning();
     if (!claimed) return;
     notifyBoard(claimed);
