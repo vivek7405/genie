@@ -1,9 +1,7 @@
 // The auth configuration. GitHub is the only provider, through the GitHub App's
 // OAuth client. A GitHub App grants its own permissions, so no scope is asked.
 import { createAuth, GitHub } from '@webjsdev/server';
-import { db } from '#db/connection.server.ts';
-import { users } from '#db/schema.server.ts';
-import { operatorLogin } from '#modules/github/operator.server.ts';
+import { allowSignIn } from './users.server.ts';
 import type { GithubIdentity } from './types.ts';
 import './types.ts';
 
@@ -33,13 +31,7 @@ export const { auth, signIn, signOut, handlers } = createAuth({
   secret,
   pages: { signIn: '/', error: '/?error=AccessDenied' },
   callbacks: {
-    signIn: async ({ user }: { user: GithubIdentity }) => {
-      if (user.login.toLowerCase() !== (await operatorLogin()).toLowerCase()) return false;
-      const fields = { login: user.login, name: user.name, avatarUrl: user.image };
-      await db.insert(users).values({ githubId: Number(user.id), ...fields })
-        .onConflictDoUpdate({ target: users.githubId, set: { ...fields, updatedAt: new Date() } });
-      return true;
-    },
+    signIn: ({ user }: { user: GithubIdentity }) => allowSignIn(user),
     jwt: async ({ token, user }: { token: Record<string, string>; user?: GithubIdentity }) =>
       user ? { ...token, login: user.login } : token,
   },

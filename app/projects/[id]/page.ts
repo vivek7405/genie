@@ -34,7 +34,7 @@ export default async function Board({ params, actionData }: PageProps<'/projects
           <live-refresh project-id=${project.id} frame="board"></live-refresh>
           <form action=${disconnectProject} data-webjs-frame="_top" class="m-0">
             <input type="hidden" name="projectId" value=${project.id}>
-            <button type="submit" class=${buttonClass({ variant: 'ghost', size: 'xs' })}>Disconnect</button>
+            <button type="submit" class=${cn(buttonClass({ variant: 'ghost', size: 'xs' }), 'text-muted-foreground')}>Disconnect</button>
           </form>
         </div>
       </div>

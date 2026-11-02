@@ -8,10 +8,9 @@ const KIND_CLASS: Record<EventKind, string> = {
   log: 'text-foreground/80',
 };
 
-// Rendered in the viewer's locale would differ between SSR and browser, so the
-// server's clock is the one clock.
+// Pages never hydrate, so one server render is the only clock involved.
 export function clock(date: Date): string {
-  return date.toISOString().slice(11, 19);
+  return date.toLocaleTimeString('en-GB', { hour12: false });
 }
 
 export function feedLine(event: TaskEvent) {

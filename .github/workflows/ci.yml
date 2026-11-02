@@ -42,6 +42,8 @@ jobs:
     timeout-minutes: 20
     env:
       DATABASE_URL: file:./ci.db
+      AUTH_SECRET: ci-only-signing-secret-not-used-anywhere-else
+      GENIE_WORKER: '0'
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
