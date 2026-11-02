@@ -98,6 +98,13 @@ test('the review form only shows in Review, and Retry only on a failure', async 
   assert.match(await page({ status: 'in_progress', error: 'It broke' }), /It broke[\s\S]*Retry/);
 });
 
+test('the header height is a token, so no swap can zero the page offset', async () => {
+  const html = await (await testRequest(handle, '/projects', withSessionCookie({}, session))).text();
+  assert.match(html, /--header-h: 3\.5rem/);
+  assert.doesNotMatch(html, /ResizeObserver/);
+  assert.match(html, /padding-top: var\(--header-h\)/);
+});
+
 test('a task title is escaped on the board', async () => {
   const p = await aProject();
   await aTask(p.id, { title: '<img src=x onerror=alert(1)>' });

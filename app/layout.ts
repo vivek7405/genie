@@ -7,7 +7,10 @@ import '#components/theme-toggle.ts';
 export const metadata = { title: { default: 'Genie', template: '%s · Genie' }, description: 'Connect a GitHub repo, add a task, and let AI take care of the rest.' };
 
 // The document shell: tokens (each written once with light-dark()), fonts, the
-// no-flash theme script, and the fixed header.
+// no-flash theme script, and the fixed header. The header's height is the
+// --header-h token and nothing measures it: a ResizeObserver stays on the element it
+// was given, so a router swap that replaces the header read 0 and slid the page
+// underneath it.
 export default async function RootLayout({ children }: LayoutProps) {
   const nonce = cspNonce();
   const me = await account();
@@ -27,19 +30,6 @@ export default async function RootLayout({ children }: LayoutProps) {
           apply();
           mq.addEventListener('change', apply);
         } catch (_) {}
-      })();
-      (function(){
-        function measure(){
-          try {
-            var hdr = document.querySelector('header');
-            if (!hdr || getComputedStyle(hdr).position !== 'fixed') return;
-            var set = function(){ document.documentElement.style.setProperty('--header-h', hdr.offsetHeight + 'px'); };
-            set();
-            if (window.ResizeObserver) new ResizeObserver(set).observe(hdr);
-          } catch (_) {}
-        }
-        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', measure);
-        else measure();
       })();
     </script>
     <meta name="color-scheme" content="light dark">
@@ -93,8 +83,8 @@ export default async function RootLayout({ children }: LayoutProps) {
         -moz-osx-font-smoothing: grayscale;
       }
     </style>
-    <header class="fixed inset-x-0 top-0 z-40 border-b border-border bg-background/75 backdrop-blur-md" style="border-right: var(--wj-scrollbar-compensation, 0px) solid transparent">
-      <div class="mx-auto flex h-14 max-w-[88rem] items-center justify-between gap-4 px-4 sm:px-6">
+    <header class="fixed inset-x-0 top-0 z-40 h-[var(--header-h)] border-b border-border bg-background/75 backdrop-blur-md" style="border-right: var(--wj-scrollbar-compensation, 0px) solid transparent">
+      <div class="mx-auto flex h-full max-w-[88rem] items-center justify-between gap-4 px-4 sm:px-6">
         <a href=${me ? '/projects' : '/'} class="inline-flex items-center gap-2 text-lg font-bold tracking-tight text-foreground no-underline" style="font-family: var(--font-display)">
           <span class="text-primary">${lampMark(26)}</span>Genie
         </a>
