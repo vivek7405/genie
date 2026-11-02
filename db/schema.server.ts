@@ -1,7 +1,7 @@
 import { defineRelations } from 'drizzle-orm';
 import { uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { table, uuidPk, text, integer, createdAt, updatedAt, timestamp } from './columns.server.ts';
-import type { EventKind, TaskStatus } from '#modules/tasks/types.ts';
+import type { CiStatus, EventKind, TaskStatus } from '#modules/tasks/types.ts';
 
 // The one person who may use this Genie: the owner of GH_TOKEN.
 export const users = table('users', {
@@ -35,6 +35,9 @@ export const tasks = table('tasks', {
   branch: text(),
   prNumber: integer(),
   prUrl: text(),
+  // What the pull request's checks said when the card reached Review.
+  ciStatus: text().$type<CiStatus>(),
+  previewUrl: text(),
   machineId: text(),
   machineName: text(),
   // A pending reviewer instruction: while set, the build stage revises.

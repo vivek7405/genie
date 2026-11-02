@@ -14,7 +14,7 @@ export function taskCard(task: Task) {
       ${task.error ? html`<span class=${cn('mt-1.5 block text-xs', task.error === STOPPED ? 'text-muted-foreground' : 'text-destructive')}>${task.error === STOPPED ? 'Stopped' : 'Failed, open to retry'}</span>` : ''}
       ${working ? html`<span class="genie-dot mt-1.5 block text-xs text-primary">${task.feedback ? 'Applying your feedback' : 'Genie is working'}</span>` : ''}
       ${!working && !task.error && task.status === 'in_progress' ? html`<span class="mt-1.5 block text-xs text-muted-foreground">Up next</span>` : ''}
-      ${task.prNumber && task.status === 'review' ? html`<span class="mt-1.5 block text-xs text-muted-foreground">PR #${task.prNumber} is ready for you</span>` : ''}
+      ${task.prNumber && task.status === 'review' ? html`<span class=${cn('mt-1.5 block text-xs', task.ciStatus === 'failing' ? 'text-destructive' : 'text-muted-foreground')}>PR #${task.prNumber}${task.ciStatus === 'failing' ? ', CI is failing' : task.ciStatus === 'passing' ? ', CI is green' : ''}</span>` : ''}
       ${task.status === 'done' ? html`<span class="mt-1.5 block text-xs text-success">Merged${task.prNumber ? ` in #${task.prNumber}` : ''}</span>` : ''}
     </a>
   `;

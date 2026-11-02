@@ -35,7 +35,8 @@ export async function approve(task: Task, project: Project): Promise<ActionResul
 
 export async function requestChanges(task: Task, feedback: string): Promise<ActionResult<Task>> {
   if (task.status !== 'review') return conflict('This task is not waiting for review.');
-  const moved = await transition(task, 'in_progress', 'human', { feedback });
+  // The old result describes code about to change.
+  const moved = await transition(task, 'in_progress', 'human', { feedback, ciStatus: null, previewUrl: null });
   if (!moved) return conflict('This task is not waiting for review.');
   await recordEvent(task.id, 'status', `Changes requested: ${feedback}`);
   notifyBoard(moved);

@@ -113,6 +113,16 @@ export async function writeFile(machineId: string, path: string, content: string
   if (res.exitCode !== 0) throw new Error(`Writing ${path} failed (exit ${res.exitCode}): ${res.stderr.trim()}`);
 }
 
+// Whether a Pilots service builds from this repository. Only then does the Pilots
+// GitHub App ever post a preview, so otherwise there is nothing to wait for.
+export async function repoHasService(repo: string): Promise<boolean> {
+  return (await pilots().services.list()).some((s) => s.repo === repo);
+}
+
+export async function machineUrl(machineId: string): Promise<string> {
+  return (await pilots().machines.get(machineId)).url;
+}
+
 // Already gone is not an error.
 export async function destroyMachine(machineId: string): Promise<void> {
   try {

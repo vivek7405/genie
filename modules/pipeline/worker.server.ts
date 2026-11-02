@@ -18,7 +18,8 @@ import { failStage, transition } from './transitions.server.ts';
 
 const STAGES = Object.keys(SYSTEM_TRANSITIONS) as TaskStatus[];
 const TICK_MS = 2_000;
-export const STAGE_DEADLINE_MS = 2 * 60 * 60_000;
+// A build, then up to three rounds of waiting on CI and fixing it, then a preview.
+export const STAGE_DEADLINE_MS = 4 * 60 * 60_000;
 
 interface WorkerState {
   running: Map<string, string>;

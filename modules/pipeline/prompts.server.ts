@@ -3,7 +3,7 @@
 // reaching the agent as literal braces, and inserted values are never rescanned.
 import { readFileSync } from 'node:fs';
 
-export type PromptName = 'build' | 'revise';
+export type PromptName = 'build' | 'revise' | 'fix-ci';
 
 export function renderPrompt(name: PromptName, vars: Record<string, string>): string {
   const raw = readFileSync(new URL(`./prompts/${name}.md`, import.meta.url), 'utf8');

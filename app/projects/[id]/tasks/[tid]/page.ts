@@ -14,7 +14,15 @@ import { listEvents } from '#modules/tasks/queries/list-events.server.ts';
 import { canDelete, canStop, STOPPED } from '#modules/tasks/utils/state-machine.ts';
 import { feedLine } from '#modules/tasks/utils/ui/feed-line.ts';
 import { statusBadge } from '#modules/tasks/utils/ui/status-badge.ts';
+import type { CiStatus } from '#modules/tasks/types.ts';
 import '#modules/tasks/components/live-refresh.ts';
+
+const CI: Record<CiStatus, { label: string; tone: string }> = {
+  passing: { label: 'CI is green', tone: 'text-success' },
+  failing: { label: 'CI is still failing after Genie tried to fix it', tone: 'text-destructive' },
+  pending: { label: 'CI was still running when Genie stopped waiting', tone: 'text-muted-foreground' },
+  none: { label: 'This repository ran no CI checks', tone: 'text-muted-foreground' },
+};
 
 export async function generateMetadata({ params }: PageProps<'/projects/[id]/tasks/[tid]'>) {
   const task = await getTask(params.tid);
@@ -42,6 +50,8 @@ export default async function TaskDetail({ params, actionData }: PageProps<'/pro
         </div>
         ${task.description ? html`<p class="m-0 mt-3 whitespace-pre-wrap text-muted-foreground">${task.description}</p>` : ''}
         ${task.prUrl ? html`<p class="m-0 mt-3 text-sm"><a href=${task.prUrl} target="_blank" rel="noopener" class="font-medium text-primary underline-offset-4 hover:underline">Pull request #${task.prNumber}</a> <span class="font-mono text-xs text-muted-foreground">${task.branch}</span></p>` : ''}
+        ${task.ciStatus ? html`<p class=${cn('m-0 mt-1 text-sm', CI[task.ciStatus].tone)}>${CI[task.ciStatus].label}</p>` : ''}
+        ${task.previewUrl && task.status !== 'done' ? html`<p class="m-0 mt-1 text-sm"><a href=${task.previewUrl} target="_blank" rel="noopener" class="font-medium text-primary underline-offset-4 hover:underline">Open the preview</a></p>` : ''}
 
         ${failed.error ? html`<p role="alert" class="m-0 mt-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">${failed.error}</p>` : ''}
 
@@ -58,7 +68,7 @@ export default async function TaskDetail({ params, actionData }: PageProps<'/pro
           <div class="mt-4 rounded-xl border border-border bg-card p-4 shadow-xs">
             <form action=${approveTask} class="m-0">
               <input type="hidden" name="taskId" value=${task.id}>
-              <button type="submit" class=${buttonClass()}>Approve and merge</button>
+              <button type="submit" class=${buttonClass(task.ciStatus === 'failing' ? { variant: 'destructive' } : {})}>${task.ciStatus === 'failing' ? 'Merge with failing CI' : 'Approve and merge'}</button>
             </form>
             <form action=${requestChanges} class="m-0 mt-4">
               <input type="hidden" name="taskId" value=${task.id}>

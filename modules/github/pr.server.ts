@@ -1,7 +1,7 @@
 // Server-only: the pull request a task produced.
 import { ghApi } from './client.server.ts';
 
-interface RestPull { number: number; html_url: string; merged: boolean; state: string; head: { ref: string } }
+interface RestPull { number: number; html_url: string; merged: boolean; state: string; head: { ref: string; sha: string } }
 
 export interface PrRef { number: number; url: string }
 
@@ -9,6 +9,10 @@ export async function findOpenPr(repo: string, branch: string): Promise<PrRef | 
   const owner = repo.split('/')[0];
   const rows = await ghApi<RestPull[]>(`repos/${repo}/pulls?state=open&per_page=1&head=${encodeURIComponent(`${owner}:${branch}`)}`);
   return rows[0] ? { number: rows[0].number, url: rows[0].html_url } : null;
+}
+
+export async function readHeadSha(repo: string, prNumber: number): Promise<string> {
+  return (await ghApi<RestPull>(`repos/${repo}/pulls/${prNumber}`)).head.sha;
 }
 
 export async function openPr(repo: string, input: { title: string; head: string; base: string; body: string }): Promise<PrRef> {

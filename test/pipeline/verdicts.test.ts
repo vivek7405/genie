@@ -94,11 +94,13 @@ test('approving something not in review is refused', async () => {
 
 test('request changes sends the card back with the feedback', async () => {
   const p = await aProject();
-  const t = await aTask(p.id, { status: 'review', prNumber: 5 });
+  const t = await aTask(p.id, { status: 'review', prNumber: 5, ciStatus: 'passing', previewUrl: 'https://old' });
   assert.equal((await requestChanges(t, 'Make it blue')).success, true);
   const row = await rowOf(t.id);
   assert.equal(row.status, 'in_progress');
   assert.equal(row.feedback, 'Make it blue');
+  assert.equal(row.ciStatus, null);
+  assert.equal(row.previewUrl, null);
   assert.equal((await requestChanges(row, 'again')).success, false);
 });
 

@@ -1,13 +1,16 @@
 // Listens on /ws and reloads the named frame in place when the worker announces
-// a change this page shows. With JS off the page is still correct, it just does
-// not update on its own. A burst of changes coalesces into one reload.
-import { WebComponent, html, signal, connectWS, loadFrame } from '@webjsdev/core';
+// a change this page shows. It renders nothing: the board changing is the signal.
+// With JS off the page is still correct, it just does not update on its own. A
+// burst of changes coalesces into one reload.
+import { WebComponent, html, connectWS, loadFrame } from '@webjsdev/core';
 import { isChangeFor } from '../utils/live.ts';
 
 const COALESCE_MS = 250;
 
 export class LiveRefresh extends WebComponent({ projectId: String, taskId: String, frame: String }) {
-  private connected = signal(false);
+  // Nothing on screen says this ships, so say it here.
+  static interactive = true;
+
   #conn: ReturnType<typeof connectWS> | null = null;
   #timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -21,8 +24,6 @@ export class LiveRefresh extends WebComponent({ projectId: String, taskId: Strin
   connectedCallback() {
     super.connectedCallback();
     this.#conn = connectWS('/ws', {
-      onOpen: () => this.connected.set(true),
-      onClose: () => this.connected.set(false),
       onMessage: (message: unknown) => {
         if (isChangeFor(message, this.projectId, this.taskId)) this.#schedule();
       },
@@ -47,13 +48,7 @@ export class LiveRefresh extends WebComponent({ projectId: String, taskId: Strin
   }
 
   render() {
-    const on = this.connected.get();
-    return html`
-      <span class="inline-flex items-center gap-1.5 text-xs text-muted-foreground" title=${on ? 'Updates arrive without a reload' : 'Reconnecting'}>
-        <span class=${on ? 'genie-dot size-2 rounded-full bg-success' : 'size-2 rounded-full bg-muted-foreground/40'}></span>
-        ${on ? 'Live' : 'Connecting'}
-      </span>
-    `;
+    return html``;
   }
 }
 LiveRefresh.register('live-refresh');

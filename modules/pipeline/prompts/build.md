@@ -22,7 +22,8 @@ and keep going until the pull request exists.
    keep its commits and do not reset the branch.
 4. Stay in this repository's own stack, conventions, package manager and checks.
    Never introduce a framework or language it does not already use.
-5. Run the project's own checks before every commit and fix what they report.
+5. Run the project's own checks before every commit and fix what they report. Genie
+   waits for CI on the pull request afterwards, and red CI comes back to you.
 6. Commit per logical unit with an imperative subject under 72 characters, and
    push after every commit with `git push -u origin {{branch}}`. Never add an AI
    attribution trailer. Never commit `node_modules` or a `.env` file.

@@ -7,6 +7,10 @@ export type TaskStatus = (typeof TASK_STATUSES)[number];
 export const EVENT_KINDS = ['status', 'log', 'error', 'github'] as const;
 export type EventKind = (typeof EVENT_KINDS)[number];
 
+// `none` means the repository ran no checks. `pending` means they outlasted the wait.
+export const CI_STATUSES = ['none', 'pending', 'passing', 'failing'] as const;
+export type CiStatus = (typeof CI_STATUSES)[number];
+
 export type { Task, TaskEvent };
 
 // What the worker broadcasts over /ws when a card changed.

@@ -92,6 +92,11 @@ test('the review form only shows in Review, and Retry only on a failure', async 
   const review = await page({ status: 'review', prNumber: 3 });
   assert.match(review, /Approve and merge/);
   assert.match(review, /the pull request stays on GitHub/);
+  const red = await page({ status: 'review', prNumber: 3, ciStatus: 'failing', previewUrl: 'https://pr-3.pilotrun.app' });
+  assert.match(red, /Merge with failing CI/);
+  assert.doesNotMatch(red, /Approve and merge/);
+  assert.match(red, /still failing after Genie tried/);
+  assert.match(red, /Open the preview/);
   const backlog = await page({});
   assert.doesNotMatch(backlog, /Approve and merge/);
   assert.match(backlog, /Delete this task/);
