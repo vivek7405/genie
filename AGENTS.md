@@ -1,5 +1,10 @@
 # AGENTS.md for genie
 
+**Genie specifics.** The gallery is already cleared, so skip the "study the gallery"
+step below. The product is a kanban board whose worker lives in `modules/pipeline`
+(start at `worker.server.ts` and `stages.server.ts`). Less is more: no GitHub Projects
+sync, no webhooks, no per-task issues. Keep it that way unless asked.
+
 This is a WebJs app: AI-first, web-components-first, buildless, and
 progressively enhanced. Read this whole file before you edit anything, then
 follow it. The steps here are required, not optional.
