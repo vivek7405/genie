@@ -14,7 +14,8 @@ ask for changes.
 | Review | You | Approve and merge, or request changes |
 | Done | | Squash merged, branch deleted, machine destroyed |
 
-A failed stage stays in its column and shows why, and Retry runs it again.
+A failed stage stays in its column and shows why, and Retry runs it again. Stop ends
+a queued or running task, and any idle card short of Done can be removed.
 
 ## Run it locally
 

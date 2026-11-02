@@ -112,13 +112,14 @@ test('retry clears the error and keeps the column and machine', async () => {
   assert.equal(row.machineId, 'm1');
 });
 
-test('only an idle backlog card or a failed one with no PR can be deleted', () => {
-  const base = { error: null, claimedAt: null, prNumber: null };
+test('any idle card short of Done can be removed, so none is ever stuck', () => {
+  const base = { error: null, claimedAt: null };
   assert.equal(canDelete({ ...base, status: 'backlog' }), true);
   assert.equal(canDelete({ ...base, status: 'backlog', claimedAt: new Date() }), false);
   assert.equal(canDelete({ ...base, status: 'in_progress' }), false);
   assert.equal(canDelete({ ...base, status: 'in_progress', error: 'x' }), true);
-  assert.equal(canDelete({ ...base, status: 'in_progress', error: 'x', prNumber: 3 }), false);
+  assert.equal(canDelete({ ...base, status: 'review' }), true);
+  assert.equal(canDelete({ ...base, status: 'done' }), false);
 });
 
 test('delete removes the card, its feed and its machine', async () => {

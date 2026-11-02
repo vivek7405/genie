@@ -89,7 +89,9 @@ test('the review form only shows in Review, and Retry only on a failure', async 
     const t = await aTask(p.id, patch);
     return (await testRequest(handle, `/projects/${p.id}/tasks/${t.id}`, open)).text();
   };
-  assert.match(await page({ status: 'review', prNumber: 3 }), /Approve and merge/);
+  const review = await page({ status: 'review', prNumber: 3 });
+  assert.match(review, /Approve and merge/);
+  assert.match(review, /the pull request stays on GitHub/);
   const backlog = await page({});
   assert.doesNotMatch(backlog, /Approve and merge/);
   assert.match(backlog, /Delete this task/);

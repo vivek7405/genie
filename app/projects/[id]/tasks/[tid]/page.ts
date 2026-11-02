@@ -85,7 +85,7 @@ export default async function TaskDetail({ params, actionData }: PageProps<'/pro
           ${canDelete(task) ? html`
             <form action=${deleteTask} data-webjs-frame="_top" class="m-0">
               <input type="hidden" name="taskId" value=${task.id}>
-              <button type="submit" class=${buttonClass({ variant: 'ghost', size: 'sm' })}>Delete this task</button>
+              <button type="submit" class=${buttonClass({ variant: 'ghost', size: 'sm' })}>${task.prNumber ? 'Remove from the board (the pull request stays on GitHub)' : 'Delete this task'}</button>
             </form>` : ''}
         </div>
       </webjs-frame>

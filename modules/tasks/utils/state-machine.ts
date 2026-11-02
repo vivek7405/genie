@@ -44,10 +44,12 @@ export function canStop(task: Pick<Task, 'status' | 'error'>): boolean {
   return task.error == null && SYSTEM_TRANSITIONS[task.status] !== undefined;
 }
 
-// Only a card nobody is working on, and never one with a live pull request.
-export function canDelete(task: Pick<Task, 'status' | 'error' | 'claimedAt' | 'prNumber'>): boolean {
+// Any card nobody is working on, short of Done, which is history. This is also the
+// way out for a Review card whose pull request was closed on GitHub. A pull request
+// itself is left alone.
+export function canDelete(task: Pick<Task, 'status' | 'error' | 'claimedAt'>): boolean {
   if (task.claimedAt) return false;
-  return task.status === 'backlog' || (task.error != null && task.prNumber == null);
+  return task.status === 'backlog' || task.status === 'review' || task.error != null;
 }
 
 export function labelOf(status: TaskStatus): string {
