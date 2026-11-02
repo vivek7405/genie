@@ -1,6 +1,7 @@
 // Server-only: git inside a task machine. The token travels only as the env of
 // one buffered exec, as GH_TOKEN (for gh) and a git insteadOf rewrite (for clone
 // and push), so nothing on the machine's disk carries it.
+import { commitIdentity, operator } from '#modules/github/operator.server.ts';
 import { execLong, shellQuote } from './pilots.server.ts';
 
 export const APP_DIR = '/home/pilot/app';
@@ -22,14 +23,17 @@ function token(): string {
 }
 
 // Clones the default branch, or refreshes a clone already there (a retry). A
-// refresh only fetches: the task branch may hold unpushed work worth keeping.
+// refresh only fetches: the task branch may hold unpushed work worth keeping. Commits
+// made here belong to the signed-in person, so an unknown identity fails the stage
+// rather than attributing their work to someone else.
 export async function cloneRepo(machineId: string, repo: string, branch: string): Promise<void> {
+  const author = commitIdentity(await operator());
   const dir = shellQuote(APP_DIR);
   const url = shellQuote(`https://github.com/${repo}.git`);
   const cmd =
     `if [ -d ${dir}/.git ]; then git -C ${dir} fetch origin; ` +
     `else git clone --branch ${shellQuote(branch)} -- ${url} ${dir}; fi` +
-    ` && git -C ${dir} config user.name genie && git -C ${dir} config user.email genie@users.noreply.github.com`;
+    ` && git -C ${dir} config user.name ${shellQuote(author.name)} && git -C ${dir} config user.email ${shellQuote(author.email)}`;
   const res = await execLong(machineId, cmd, { env: gitEnv(token()), timeoutMs: 600_000 });
   if (res.exitCode !== 0) throw new Error(`git clone failed: ${res.stderr.trim()}`);
 }

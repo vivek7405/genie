@@ -1,10 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import './../helpers/db.ts';
+import { json } from './../helpers/db.ts';
+import { setGithubTransport } from '#modules/github/client.server.ts';
+import { commitIdentity, resetOperatorLogin } from '#modules/github/operator.server.ts';
 import type { PilotsClient } from '@pilots/sdk';
 import { execLong, machineNameFor, redact, setPilotsClient, shellQuote, writeFile } from '#modules/pipeline/pilots.server.ts';
 import { claudeCommand, runClaude } from '#modules/pipeline/claude.server.ts';
-import { gitEnv } from '#modules/pipeline/git.server.ts';
+import { cloneRepo, gitEnv } from '#modules/pipeline/git.server.ts';
 
 interface Req { cmd: string; env?: Record<string, string>; timeout_ms?: number }
 
@@ -64,6 +66,31 @@ test('the git env carries the token only as exec env', () => {
   assert.equal(env.GH_TOKEN, 'tok');
   assert.equal(env.GIT_CONFIG_KEY_0, 'url.https://x-access-token:tok@github.com/.insteadOf');
   assert.equal(env.GIT_TERMINAL_PROMPT, '0');
+});
+
+test('the commit identity is the person GitHub links to the account', () => {
+  assert.deepEqual(commitIdentity({ id: 42, login: 'ada', name: 'Ada Lovelace' }), { name: 'Ada Lovelace', email: '42+ada@users.noreply.github.com' });
+  assert.equal(commitIdentity({ id: 42, login: 'ada', name: null }).name, 'ada');
+});
+
+test('a clone commits as the signed-in person, never as a made-up genie', async () => {
+  resetOperatorLogin();
+  setGithubTransport(async () => json({ id: 42, login: 'ada', name: "Ada O'Brien" }));
+  const calls = fakeClient(() => ({}));
+  await cloneRepo('m', 'acme/site', 'main');
+  assert.ok(calls[0].cmd.includes(`config user.name 'Ada O'\\''Brien'`));
+  assert.ok(calls[0].cmd.includes('config user.email 42+ada@users.noreply.github.com'));
+  assert.ok(!/config user\.(name|email) genie/.test(calls[0].cmd));
+  resetOperatorLogin();
+});
+
+test('an unknown identity fails the clone rather than guessing an author', async () => {
+  resetOperatorLogin();
+  setGithubTransport(async () => new Response('down', { status: 503 }));
+  const calls = fakeClient(() => ({}));
+  await assert.rejects(cloneRepo('m', 'acme/site', 'main'));
+  assert.equal(calls.length, 0);
+  resetOperatorLogin();
 });
 
 test('claudeCommand keeps every argument one word', () => {
